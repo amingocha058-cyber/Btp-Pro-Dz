@@ -720,6 +720,10 @@ private fun SettingsScreen(isArabic: Boolean) {
     var materialName by remember { mutableStateOf("") }
     var materialPrice by remember { mutableStateOf("") }
     var materialUnit by remember { mutableStateOf("وحدة") }
+    var laborTrade by remember { mutableStateOf("") }
+    var laborUnit by remember { mutableStateOf("يوم") }
+    var laborPrice by remember { mutableStateOf("") }
+    val laborRates by dao.observeLaborRates().collectAsState(initial = emptyList())
     var tvaLoaded by remember { mutableStateOf(false) }
     val tva = tvaText.toDoubleOrNull() ?: -1.0
     val validTva = tva in 0.0..100.0
@@ -806,6 +810,25 @@ private fun SettingsScreen(isArabic: Boolean) {
             val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.ROOT).format(java.util.Date(entry.recordedAt))
             Text("• ${entry.materialName}: ${entry.price} DA / ${entry.unit} — $date")
         }
+        Divider()
+        Text(if (isArabic) "أسعار اليد العاملة حسب المهنة" else "Tarifs de main-d’œuvre par métier", fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(value = laborTrade, onValueChange = { laborTrade = it }, label = { Text(if (isArabic) "المهنة" else "Métier") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = laborUnit, onValueChange = { laborUnit = it }, label = { Text(if (isArabic) "وحدة الحساب: يوم أو ساعة أو وحدة" else "Unité : jour, heure ou unité") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        NumberField(if (isArabic) "السعر بالدينار الجزائري" else "Tarif en DA", laborPrice) { laborPrice = it }
+        Button(onClick = {
+            val price = laborPrice.toDoubleOrNull()
+            if (price != null && price >= 0 && laborTrade.isNotBlank() && laborUnit.isNotBlank()) scope.launch {
+                val oldRate = dao.findLaborRate(laborTrade.trim())
+                dao.saveLaborRate(LaborRateEntity(id = oldRate?.id ?: 0, tradeName = laborTrade.trim(), unit = laborUnit.trim(), unitPrice = price))
+                laborTrade = ""
+                laborPrice = ""
+            }
+        }, enabled = laborTrade.isNotBlank() && laborUnit.isNotBlank() && (laborPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
+            Text(if (isArabic) "حفظ / تحديث سعر المهنة" else "Enregistrer / actualiser le tarif")
+        }
+        if (laborRates.isEmpty()) Text(if (isArabic) "لا توجد أسعار مهن مسجلة." else "Aucun tarif enregistré.")
+        laborRates.forEach { rate -> Text("• " + rate.tradeName + ": " + rate.unitPrice + " دج / " + rate.unit) }
+
         Text(
             if (isArabic) "تُحفظ هذه البيانات محلياً على الهاتف دون الحاجة إلى الإنترنت. أصبحت بنود تكلفة المواد قابلة للإضافة من داخل أقسام الأشغال، وسيأتي ربطها بكميات الحاسبات ومشاريع Devis في المراحل التالية." else "Ces données sont enregistrées localement sur le téléphone, sans Internet. Les lignes de coûts des matériaux peuvent maintenant être ajoutées depuis les rubriques. Leur liaison automatique aux quantités calculées et aux devis viendra ensuite.",
             style = MaterialTheme.typography.bodySmall,
