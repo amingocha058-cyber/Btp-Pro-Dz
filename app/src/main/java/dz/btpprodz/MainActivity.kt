@@ -871,6 +871,11 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
         selectedProjectId?.let { dao.observeDevis(it) } ?: flowOf(emptyList())
     }
     val devisList by devisFlow.collectAsState(initial = emptyList())
+    var selectedDevisId by remember { mutableStateOf<Long?>(null) }
+    val selectedLinesFlow = remember(selectedDevisId) {
+        selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
+    }
+    val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "المشاريع والـ Devis" else "Projets et devis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -945,6 +950,23 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         Text("HT : " + "%.2f".format(doc.totalHt) + " DA")
                         Text("TVA (" + doc.tvaPercent + "%) : " + "%.2f".format(doc.tvaAmount) + " DA")
                         Text("TTC : " + "%.2f".format(doc.totalTtc) + " DA", fontWeight = FontWeight.Bold)
+                        OutlinedButton(onClick = { selectedDevisId = if (selectedDevisId == doc.id) null else doc.id }) {
+                            Text(if (selectedDevisId == doc.id) { if (isArabic) "إخفاء البنود" else "Masquer les lignes" } else { if (isArabic) "عرض تفاصيل البنود" else "Voir les lignes" })
+                        }
+                    }
+                }
+            }
+            if (selectedDevisId != null) {
+                Divider()
+                Text(if (isArabic) "تفاصيل وثيقة Devis" else "Détail du devis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (selectedLines.isEmpty()) Text(if (isArabic) "لا توجد بنود محفوظة في هذه الوثيقة." else "Aucune ligne enregistrée dans ce devis.")
+                selectedLines.forEach { line ->
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text((if (line.category == "LABOR") { if (isArabic) "اليد العاملة" else "Main-d’œuvre" } else { if (isArabic) "المواد" else "Matériaux" }) + " — " + line.section, fontWeight = FontWeight.SemiBold)
+                            Text(line.description)
+                            Text(line.quantity.toString() + " " + line.unit + " × " + "%.2f".format(line.unitPrice) + " = " + "%.2f".format(line.total) + " DA")
+                        }
                     }
                 }
             }
