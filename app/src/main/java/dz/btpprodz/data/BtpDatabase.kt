@@ -58,6 +58,27 @@ data class CalculationCostEntity(
     val recordedAt: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "labor_rates", indices = [Index(value = ["tradeName"], unique = true)])
+data class LaborRateEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val tradeName: String,
+    val unit: String,
+    val unitPrice: Double,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "labor_costs", indices = [Index("section"), Index("recordedAt")])
+data class LaborCostEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val section: String,
+    val tradeName: String,
+    val quantity: Double,
+    val unit: String,
+    val unitPriceSnapshot: Double,
+    val totalCost: Double,
+    val recordedAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface AppDataDao {
     @Query("SELECT * FROM app_settings WHERE `key` = :key LIMIT 1")
@@ -92,11 +113,26 @@ interface AppDataDao {
 
     @Query("SELECT * FROM calculation_costs WHERE section = :section ORDER BY recordedAt DESC")
     fun observeCalculationCosts(section: String): Flow<List<CalculationCostEntity>>
+
+    @Query("SELECT * FROM labor_rates ORDER BY tradeName COLLATE NOCASE")
+    fun observeLaborRates(): Flow<List<LaborRateEntity>>
+
+    @Query("SELECT * FROM labor_rates WHERE tradeName = :name COLLATE NOCASE LIMIT 1")
+    suspend fun findLaborRate(name: String): LaborRateEntity?
+
+    @Upsert
+    suspend fun saveLaborRate(rate: LaborRateEntity)
+
+    @Insert
+    suspend fun insertLaborCost(cost: LaborCostEntity)
+
+    @Query("SELECT * FROM labor_costs WHERE section = :section ORDER BY recordedAt DESC")
+    fun observeLaborCosts(section: String): Flow<List<LaborCostEntity>>
 }
 
 @Database(
-    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class],
-    version = 2,
+    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class, LaborRateEntity::class, LaborCostEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class BtpDatabase : RoomDatabase() {
@@ -111,6 +147,16 @@ abstract class BtpDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS labor_rates (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, tradeName TEXT NOT NULL, unit TEXT NOT NULL, unitPrice REAL NOT NULL, updatedAt INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_labor_rates_tradeName ON labor_rates(tradeName)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS labor_costs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, section TEXT NOT NULL, tradeName TEXT NOT NULL, quantity REAL NOT NULL, unit TEXT NOT NULL, unitPriceSnapshot REAL NOT NULL, totalCost REAL NOT NULL, recordedAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_labor_costs_section ON labor_costs(section)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_labor_costs_recordedAt ON labor_costs(recordedAt)")
+            }
+        }
+
         @Volatile private var INSTANCE: BtpDatabase? = null
 
         fun getInstance(context: Context): BtpDatabase =
@@ -119,7 +165,7 @@ abstract class BtpDatabase : RoomDatabase() {
                     context.applicationContext,
                     BtpDatabase::class.java,
                     "btp_pro_dz.db"
-                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
             }
     }
 }
