@@ -119,7 +119,7 @@ private fun BtpProDzApp() {
                     if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic) }
                     if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic) }
                     if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic) }
-                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic) }
+                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic) }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
                 } else {
                 Text(
@@ -767,7 +767,7 @@ private fun SettingsScreen(isArabic: Boolean) {
             Text("• ${entry.materialName}: ${entry.price} DA / ${entry.unit} — $date")
         }
         Text(
-            if (isArabic) "تُحفظ هذه البيانات محلياً على الهاتف دون الحاجة إلى الإنترنت. ربطها بالحسابات وDevis سيكون في المرحلة التالية." else "Ces données sont enregistrées localement sur le téléphone, sans Internet. Leur liaison aux calculs et aux devis viendra à l’étape suivante.",
+            if (isArabic) "تُحفظ هذه البيانات محلياً على الهاتف دون الحاجة إلى الإنترنت. أصبحت بنود تكلفة المواد قابلة للإضافة من داخل أقسام الأشغال، وسيأتي ربطها بكميات الحاسبات ومشاريع Devis في المراحل التالية." else "Ces données sont enregistrées localement sur le téléphone, sans Internet. Les lignes de coûts des matériaux peuvent maintenant être ajoutées depuis les rubriques. Leur liaison automatique aux quantités calculées et aux devis viendra ensuite.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
