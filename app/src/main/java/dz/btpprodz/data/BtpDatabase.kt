@@ -55,6 +55,7 @@ data class CalculationCostEntity(
     val unit: String,
     val unitPriceSnapshot: Double,
     val totalCost: Double,
+    val projectId: Long? = null,
     val recordedAt: Long = System.currentTimeMillis()
 )
 
@@ -115,6 +116,7 @@ data class LaborCostEntity(
     val unit: String,
     val unitPriceSnapshot: Double,
     val totalCost: Double,
+    val projectId: Long? = null,
     val recordedAt: Long = System.currentTimeMillis()
 )
 
@@ -186,16 +188,22 @@ interface AppDataDao {
     @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
     fun observeDevisLines(devisId: Long): Flow<List<DevisLineEntity>>
 
-    @Query("SELECT * FROM calculation_costs ORDER BY section, recordedAt")
-    suspend fun allMaterialCostLines(): List<CalculationCostEntity>
+    @Query("SELECT * FROM calculation_costs WHERE projectId = :projectId ORDER BY section, recordedAt")
+    suspend fun materialCostLinesForProject(projectId: Long): List<CalculationCostEntity>
 
-    @Query("SELECT * FROM labor_costs ORDER BY section, recordedAt")
-    suspend fun allLaborCostLines(): List<LaborCostEntity>
+    @Query("SELECT * FROM labor_costs WHERE projectId = :projectId ORDER BY section, recordedAt")
+    suspend fun laborCostLinesForProject(projectId: Long): List<LaborCostEntity>
+
+    @Query("UPDATE calculation_costs SET projectId = :projectId WHERE projectId IS NULL")
+    suspend fun assignUnassignedMaterialCosts(projectId: Long): Int
+
+    @Query("UPDATE labor_costs SET projectId = :projectId WHERE projectId IS NULL")
+    suspend fun assignUnassignedLaborCosts(projectId: Long): Int
 }
 
 @Database(
     entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class, LaborRateEntity::class, LaborCostEntity::class, ProjectEntity::class, DevisDocumentEntity::class, DevisLineEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class BtpDatabase : RoomDatabase() {
@@ -234,6 +242,15 @@ abstract class BtpDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calculation_costs ADD COLUMN projectId INTEGER")
+                db.execSQL("ALTER TABLE labor_costs ADD COLUMN projectId INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_calculation_costs_projectId ON calculation_costs(projectId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_labor_costs_projectId ON labor_costs(projectId)")
+            }
+        }
+
         @Volatile private var INSTANCE: BtpDatabase? = null
 
         fun getInstance(context: Context): BtpDatabase =
@@ -242,7 +259,7 @@ abstract class BtpDatabase : RoomDatabase() {
                     context.applicationContext,
                     BtpDatabase::class.java,
                     "btp_pro_dz.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
             }
     }
 }
