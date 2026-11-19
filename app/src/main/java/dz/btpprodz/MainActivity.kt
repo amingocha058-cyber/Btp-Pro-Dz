@@ -590,7 +590,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
 
 @Composable
 private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: Long?) {
-    val dao = remember { database.appDataDao() }
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
     val materials by dao.observeMaterials().collectAsState(initial = emptyList())
     val costsFlow = remember(section, projectId) { projectId?.let { dao.observeCalculationCostsForProject(section, it) } ?: flowOf(emptyList()) }
