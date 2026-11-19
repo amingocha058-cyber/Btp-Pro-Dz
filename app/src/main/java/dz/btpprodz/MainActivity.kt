@@ -73,6 +73,7 @@ private fun BtpProDzApp() {
     var showEarthworksCalculator by remember { mutableStateOf(false) }
     var showColumnBeamCalculator by remember { mutableStateOf(false) }
     var selectedOtherSection by remember { mutableStateOf<String?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -91,9 +92,15 @@ private fun BtpProDzApp() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null }) {
+                Spacer(modifier = Modifier.height(8.dp))
+                if (!showConcreteCalculator && !showFoundationCalculator && !showEarthworksCalculator && !showColumnBeamCalculator && selectedOtherSection == null && !showSettings) {
+                    OutlinedButton(onClick = { showSettings = true }) {
+                        Text(if (isArabic) "الإعدادات" else "Paramètres")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null || showSettings) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
                     if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
@@ -101,6 +108,7 @@ private fun BtpProDzApp() {
                     if (showEarthworksCalculator) EarthworksCalculator(isArabic = isArabic)
                     if (showColumnBeamCalculator) ColumnBeamCalculator(isArabic = isArabic)
                     if (selectedOtherSection != null) OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic)
+                    if (showSettings) SettingsScreen(isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -547,6 +555,73 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
         Text(
             if (isArabic) "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ. في حساب اليد العاملة، أدخل عدد الوحدات وسعر الوحدة المناسب." else "Estimations de quantités. Hors pertes, spécifications des matériaux et détails d’exécution. Pour la main-d’œuvre, saisissez le nombre d’unités et le prix unitaire.",
             style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+
+@Composable
+private fun SettingsScreen(isArabic: Boolean) {
+    var tvaText by remember { mutableStateOf("19") }
+    var unitName by remember { mutableStateOf("") }
+    var unitSymbol by remember { mutableStateOf("") }
+    var materialName by remember { mutableStateOf("") }
+    var materialPrice by remember { mutableStateOf("") }
+    var customUnits by remember { mutableStateOf(listOf<Pair<String, String>>()) }
+    var priceHistory by remember { mutableStateOf(listOf<Triple<String, String, String>>()) }
+    val tva = tvaText.toDoubleOrNull() ?: 0.0
+    val validTva = tva in 0.0..100.0
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(if (isArabic) "إعدادات التطبيق" else "Paramètres de l’application", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "الضريبة على القيمة المضافة TVA (%)" else "TVA (%)", fontWeight = FontWeight.SemiBold)
+        NumberField(if (isArabic) "نسبة TVA" else "Taux de TVA", tvaText) { tvaText = it }
+        Text(
+            if (validTva) {
+                if (isArabic) "معامل السعر شامل الضريبة: ${"%.2f".format(1 + tva / 100)}" else "Coefficient TTC : ${"%.2f".format(1 + tva / 100)}"
+            } else {
+                if (isArabic) "أدخل نسبة بين 0 و100." else "Saisissez un taux entre 0 et 100."
+            },
+            color = if (validTva) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+        )
+        Divider()
+        Text(if (isArabic) "إضافة وحدة قياس" else "Ajouter une unité", fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(value = unitName, onValueChange = { unitName = it }, label = { Text(if (isArabic) "اسم الوحدة" else "Nom de l’unité") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = unitSymbol, onValueChange = { unitSymbol = it }, label = { Text(if (isArabic) "رمز الوحدة" else "Symbole de l’unité") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        Button(onClick = {
+            if (unitName.isNotBlank() && unitSymbol.isNotBlank()) {
+                customUnits = customUnits + (unitName.trim() to unitSymbol.trim())
+                unitName = ""
+                unitSymbol = ""
+            }
+        }, enabled = unitName.isNotBlank() && unitSymbol.isNotBlank()) {
+            Text(if (isArabic) "إضافة الوحدة" else "Ajouter l’unité")
+        }
+        customUnits.forEach { Text("• ${it.first} (${it.second})") }
+        Divider()
+        Text(if (isArabic) "أسعار المواد وسجل الأسعار" else "Prix des matériaux et historique", fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(value = materialName, onValueChange = { materialName = it }, label = { Text(if (isArabic) "اسم المادة" else "Nom du matériau") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        NumberField(if (isArabic) "السعر بالدينار الجزائري (دج)" else "Prix en dinars algériens (DA)", materialPrice) { materialPrice = it }
+        Button(onClick = {
+            val price = materialPrice.toDoubleOrNull()
+            if (materialName.isNotBlank() && price != null && price >= 0) {
+                val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
+                priceHistory = listOf(Triple(materialName.trim(), materialPrice, date)) + priceHistory
+                materialName = ""
+                materialPrice = ""
+            }
+        }, enabled = materialName.isNotBlank() && (materialPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
+            Text(if (isArabic) "حفظ السعر في السجل" else "Enregistrer le prix")
+        }
+        if (priceHistory.isEmpty()) {
+            Text(if (isArabic) "لا توجد أسعار مسجلة بعد." else "Aucun prix enregistré.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            priceHistory.forEach { entry -> Text("• ${entry.first}: ${entry.second} DA — ${entry.third}") }
+        }
+        Text(
+            if (isArabic) "ملاحظة: الإعدادات مؤقتة داخل الشاشة حالياً؛ سنضيف التخزين الدائم وربط الأسعار بالحسابات وDevis لاحقاً." else "Remarque : paramètres temporaires pour le moment ; le stockage permanent et la liaison aux calculs et devis seront ajoutés plus tard.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
