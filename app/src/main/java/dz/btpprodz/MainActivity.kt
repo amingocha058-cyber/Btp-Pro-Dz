@@ -1,6 +1,7 @@
 package dz.btpprodz
 
 import android.os.Bundle
+import androidx.room.withTransaction
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -589,8 +590,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
 
 @Composable
 private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: Long?) {
-    val context = LocalContext.current
-    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val dao = remember { database.appDataDao() }
     val scope = rememberCoroutineScope()
     val materials by dao.observeMaterials().collectAsState(initial = emptyList())
     val costsFlow = remember(section, projectId) { projectId?.let { dao.observeCalculationCostsForProject(section, it) } ?: flowOf(emptyList()) }
@@ -858,6 +858,8 @@ private fun SettingsScreen(isArabic: Boolean) {
 @Composable
 private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit) {
     val context = LocalContext.current
+    val database = remember { BtpDatabase.getInstance(context) }
+    val context = LocalContext.current
     val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
     val projects by dao.observeProjects().collectAsState(initial = emptyList())
@@ -945,7 +947,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                 }
             }
         }
-        Text(if (isArabic) "ملاحظة: بنود التكاليف الجديدة تبقى غير مرتبطة إلى أن تسندها من داخل المشروع. راجع البنود المسندة قبل اعتماد Devis نهائي." else "Note : les nouveaux coûts restent non associés jusqu’à leur affectation depuis le projet. Vérifiez les lignes avant de valider un devis final.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        Text(if (isArabic) "تُحفظ تفاصيل كل Devis بصورة مستقلة؛ التعديلات اللاحقة على أسعار المواد أو أجور العمال لا تغيّر الوثائق السابقة." else "Chaque devis conserve ses propres lignes ; les modifications ultérieures des tarifs ne changent pas les documents existants.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
