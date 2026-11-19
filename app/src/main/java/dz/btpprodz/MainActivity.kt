@@ -176,7 +176,7 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     var quantityText by remember { mutableStateOf("1") }
     var lengthText by remember { mutableStateOf("0.30") }
     var widthText by remember { mutableStateOf("0.30") }
-    var heightText by remember { mutableStateOf("3.00") }
+    var heightText by remember { mutableStateOf("0.30") }
 
     val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
     val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
@@ -184,7 +184,16 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val height = heightText.toDoubleOrNull() ?: 0.0
-    val totalVolume = if (quantity > 0 && length > 0 && width > 0 && height > 0) quantity * length * width * height else 0.0
+    val valid = quantity > 0 && length > 0 && width > 0 && height > 0
+    val totalVolume = if (valid) quantity * length * width * height else 0.0
+    val perElementVolume = if (length > 0 && width > 0 && height > 0) length * width * height else 0.0
+
+    val dimensionLabels = when (elementType) {
+        0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
+        1 -> if (isArabic) listOf("عرض المقطع (م)", "عمق المقطع (م)", "الارتفاع (م)") else listOf("Largeur (m)", "Profondeur (m)", "Hauteur (m)")
+        2 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur (m)")
+        else -> if (isArabic) listOf("الطول (م)", "العرض (م)", "السماكة (م)") else listOf("Longueur (m)", "Largeur (m)", "Épaisseur (m)")
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "حساب عدد وحجم العناصر الخرسانية" else "Nombre et volume des éléments en béton", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -195,17 +204,21 @@ private fun ConcreteCalculator(isArabic: Boolean) {
                 else OutlinedButton(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
             }
         }
-        NumberField(if (isArabic) "العدد" else "Quantité", quantityText) { quantityText = it }
-        NumberField(if (isArabic) "الطول (متر)" else "Longueur (m)", lengthText) { lengthText = it }
-        NumberField(if (isArabic) "العرض (متر)" else "Largeur (m)", widthText) { widthText = it }
-        NumberField(if (isArabic) "الارتفاع / السماكة (متر)" else "Hauteur / épaisseur (m)", heightText) { heightText = it }
+        NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
+        NumberField(dimensionLabels[0], lengthText) { lengthText = it }
+        NumberField(dimensionLabels[1], widthText) { widthText = it }
+        NumberField(dimensionLabels[2], heightText) { heightText = it }
+
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text(if (isArabic) "عدد العناصر: ${quantity.toInt()}" else "Nombre d’éléments : ${quantity.toInt()}")
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre d’éléments : ${if (quantity >= 0) quantity.toInt() else 0}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(perElementVolume)} م³" else "Volume unitaire : ${"%.3f".format(perElementVolume)} m³")
                 Text(if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (!valid) Text(if (isArabic) "أدخل أعداداً وأبعاداً أكبر من الصفر لعرض نتيجة صحيحة." else "Saisissez des quantités et dimensions supérieures à zéro.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
-        Text(if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع/السماكة" else "Calcul : quantité × longueur × largeur × hauteur/épaisseur", style = MaterialTheme.typography.bodySmall)
+        Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
     }
 }
 
