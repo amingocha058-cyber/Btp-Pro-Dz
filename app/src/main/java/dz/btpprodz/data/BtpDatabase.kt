@@ -43,6 +43,19 @@ data class MaterialPriceHistoryEntity(
     val recordedAt: Long = System.currentTimeMillis()
 )
 
+
+@Entity(tableName = "calculation_costs", indices = [Index("recordedAt"), Index("section")])
+data class CalculationCostEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val section: String,
+    val materialName: String,
+    val quantity: Double,
+    val unit: String,
+    val unitPriceSnapshot: Double,
+    val totalCost: Double,
+    val recordedAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface AppDataDao {
     @Query("SELECT * FROM app_settings WHERE `key` = :key LIMIT 1")
@@ -71,11 +84,17 @@ interface AppDataDao {
 
     @Query("SELECT * FROM material_price_history ORDER BY recordedAt DESC")
     fun observePriceHistory(): Flow<List<MaterialPriceHistoryEntity>>
+
+    @Insert
+    suspend fun insertCalculationCost(cost: CalculationCostEntity)
+
+    @Query("SELECT * FROM calculation_costs WHERE section = :section ORDER BY recordedAt DESC")
+    fun observeCalculationCosts(section: String): Flow<List<CalculationCostEntity>>
 }
 
 @Database(
-    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class],
-    version = 1,
+    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class BtpDatabase : RoomDatabase() {
