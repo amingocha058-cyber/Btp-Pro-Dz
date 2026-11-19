@@ -72,6 +72,7 @@ private fun BtpProDzApp() {
     var showFoundationCalculator by remember { mutableStateOf(false) }
     var showEarthworksCalculator by remember { mutableStateOf(false) }
     var showColumnBeamCalculator by remember { mutableStateOf(false) }
+    var selectedOtherSection by remember { mutableStateOf<String?>(null) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -91,14 +92,15 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false }) {
+                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
                     if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
                     if (showFoundationCalculator) FoundationCalculator(isArabic = isArabic)
                     if (showEarthworksCalculator) EarthworksCalculator(isArabic = isArabic)
                     if (showColumnBeamCalculator) ColumnBeamCalculator(isArabic = isArabic)
+                    if (selectedOtherSection != null) OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -138,6 +140,7 @@ private fun BtpProDzApp() {
                                     if (section.ar == "الأساسات") showFoundationCalculator = true
                                     if (section.ar == "الحفر والردم") showEarthworksCalculator = true
                                     if (section.ar == "الأعمدة والجسور") showColumnBeamCalculator = true
+                                    if (section.ar !in listOf("الخرسانة", "الأساسات", "الحفر والردم", "الأعمدة والجسور")) selectedOtherSection = section.ar
                                 },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
@@ -437,6 +440,112 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
         }
         Text(
             if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+
+@Composable
+private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
+    var countText by remember(section) { mutableStateOf("1") }
+    var lengthText by remember(section) { mutableStateOf("5") }
+    var widthText by remember(section) { mutableStateOf("3") }
+    var heightText by remember(section) { mutableStateOf("3") }
+    var unitPriceText by remember(section) { mutableStateOf("0") }
+    var openingAreaText by remember(section) { mutableStateOf("0") }
+    var tileLengthText by remember(section) { mutableStateOf("0.60") }
+    var tileWidthText by remember(section) { mutableStateOf("0.60") }
+
+    val count = countText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.toDoubleOrNull() ?: 0.0
+    val width = widthText.toDoubleOrNull() ?: 0.0
+    val height = heightText.toDoubleOrNull() ?: 0.0
+    val unitPrice = unitPriceText.toDoubleOrNull() ?: 0.0
+    val openings = openingAreaText.toDoubleOrNull() ?: 0.0
+    val tileLength = tileLengthText.toDoubleOrNull() ?: 0.0
+    val tileWidth = tileWidthText.toDoubleOrNull() ?: 0.0
+
+    val isWall = section == "الجدران والبناء"
+    val isRoof = section == "السقوف والبلاطات"
+    val isFinish = section == "التلبيس والطلاء"
+    val isFloor = section == "الأرضيات والتبليط"
+    val isStairs = section == "السلالم"
+    val isLabor = section == "اليد العاملة"
+    val area = when {
+        isWall -> count * length * height - openings
+        isRoof || isFloor -> count * length * width
+        isFinish -> count * length * height
+        isStairs -> count * length * width
+        else -> 0.0
+    }
+    val volume = if (isRoof) area * height else 0.0
+    val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
+    val laborTotal = if (isLabor && count >= 0 && unitPrice >= 0) count * unitPrice else 0.0
+    val valid = count > 0 && length > 0 && width > 0 && height > 0 &&
+        openings >= 0 && (!isFloor || (tileLength > 0 && tileWidth > 0)) &&
+        (!isLabor || unitPrice >= 0) && (!isWall || area >= 0)
+
+    val titleAr = section
+    val titleFr = when(section) {
+        "الجدران والبناء" -> "Maçonnerie"
+        "السقوف والبلاطات" -> "Planchers et dalles"
+        "التلبيس والطلاء" -> "Enduit et peinture"
+        "الأرضيات والتبليط" -> "Revêtements"
+        "السلالم" -> "Escaliers"
+        else -> "Main-d’œuvre"
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(if (isArabic) titleAr else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        if (isLabor) {
+            NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
+            NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
+        } else {
+            NumberField(if (isArabic) "عدد العناصر / الغرف / المساحات" else "Nombre d’éléments / pièces / surfaces", countText) { countText = it }
+            NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
+            NumberField(if (isArabic) if (isWall || isFinish) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
+            if (isWall || isFinish) {
+                NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
+            } else if (!isStairs) {
+                NumberField(if (isArabic) if (isRoof) "سماكة البلاطة (م)" else "طول البلاطة / المساحة (م)" else if (isRoof) "Épaisseur de dalle (m)" else "Dimension (m)", heightText) { heightText = it }
+            }
+            if (isFloor) {
+                NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
+                NumberField(if (isArabic) "عرض البلاطة الواحدة (م)" else "Largeur d’un carreau (m)", tileWidthText) { tileWidthText = it }
+            }
+            if (isRoof) {
+                NumberField(if (isArabic) "السماكة (م)" else "Épaisseur (m)", heightText) { heightText = it }
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (isArabic) "النتائج التقديرية" else "Résultats estimatifs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                when {
+                    isLabor -> {
+                        Text(if (isArabic) "إجمالي وحدات العمل: ${"%.2f".format(count)}" else "Total des unités : ${"%.2f".format(count)}")
+                        Text(if (isArabic) "التكلفة الإجمالية: ${"%.2f".format(laborTotal)} دج" else "Coût total : ${"%.2f".format(laborTotal)} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    isRoof -> {
+                        Text(if (isArabic) "المساحة: ${"%.3f".format(area)} م²" else "Surface : ${"%.3f".format(area)} m²")
+                        Text(if (isArabic) "حجم الخرسانة: ${"%.3f".format(volume)} م³" else "Volume de béton : ${"%.3f".format(volume)} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    isFloor -> {
+                        Text(if (isArabic) "المساحة الإجمالية: ${"%.3f".format(area)} م²" else "Surface totale : ${"%.3f".format(area)} m²")
+                        Text(if (isArabic) "عدد البلاطات النظري: ${"%.0f".format(kotlin.math.ceil(tileCount))}" else "Nombre théorique de carreaux : ${"%.0f".format(kotlin.math.ceil(tileCount))}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    else -> Text(if (isArabic) "المساحة الصافية: ${"%.3f".format(area)} م²" else "Surface nette : ${"%.3f".format(area)} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                if (!valid) Text(
+                    if (isArabic) "راجع المدخلات: يجب أن تكون الأبعاد والأعداد موجبة، وألا تتجاوز الفتحات مساحة الجدار." else "Vérifiez les données : valeurs positives et ouvertures inférieures à la surface du mur.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        Text(
+            if (isArabic) "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ. في حساب اليد العاملة، أدخل عدد الوحدات وسعر الوحدة المناسب." else "Estimations de quantités. Hors pertes, spécifications des matériaux et détails d’exécution. Pour la main-d’œuvre, saisissez le nombre d’unités et le prix unitaire.",
             style = MaterialTheme.typography.bodySmall
         )
     }
