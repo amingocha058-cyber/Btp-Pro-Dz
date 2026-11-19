@@ -892,8 +892,17 @@ private fun ProjectsScreen(isArabic: Boolean) {
             Text(if (isArabic) "المشروع المحدد: " + selectedProject.name else "Projet sélectionné : " + selectedProject.name, fontWeight = FontWeight.Bold)
             Button(onClick = {
                 scope.launch {
-                    val materialLines = dao.allMaterialCostLines()
-                    val laborLines = dao.allLaborCostLines()
+                    dao.assignUnassignedMaterialCosts(selectedProject.id)
+                    dao.assignUnassignedLaborCosts(selectedProject.id)
+                }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (isArabic) "إسناد التكاليف غير المرتبطة إلى هذا المشروع" else "Affecter les coûts non associés à ce projet")
+            }
+            Text(if (isArabic) "هذا الإجراء ينقل كل البنود غير المرتبطة حالياً إلى المشروع المحدد. بعد ذلك أنشئ Devis خاصاً به." else "Cette action affecte au projet sélectionné toutes les lignes qui ne sont liées à aucun projet. Créez ensuite son devis.")
+            Button(onClick = {
+                scope.launch {
+                    val materialLines = dao.materialCostLinesForProject(selectedProject.id)
+                    val laborLines = dao.laborCostLinesForProject(selectedProject.id)
                     val materialTotal = materialLines.sumOf { it.totalCost }
                     val laborTotal = laborLines.sumOf { it.totalCost }
                     val ht = materialTotal + laborTotal
@@ -937,7 +946,7 @@ private fun ProjectsScreen(isArabic: Boolean) {
                 }
             }
         }
-        Text(if (isArabic) "تنبيه: هذه النسخة تجمع حالياً جميع بنود التكاليف المسجلة في التطبيق، ولا تعزلها بعد حسب المشروع. لا تعتمد الوثيقة كعرض نهائي قبل ربط كل بند بمعرّف المشروع." else "Note : cette version agrège tous les coûts enregistrés. L’affectation de chaque ligne à un projet sera ajoutée avant usage comme devis final.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        Text(if (isArabic) "ملاحظة: بنود التكاليف الجديدة تبقى غير مرتبطة إلى أن تسندها من داخل المشروع. راجع البنود المسندة قبل اعتماد Devis نهائي." else "Note : les nouveaux coûts restent non associés jusqu’à leur affectation depuis le projet. Vérifiez les lignes avant de valider un devis final.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     }
 }
 
