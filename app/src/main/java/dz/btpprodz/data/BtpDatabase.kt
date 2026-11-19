@@ -67,6 +67,45 @@ data class LaborRateEntity(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+
+@Entity(tableName = "projects", indices = [Index("createdAt")])
+data class ProjectEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val clientName: String = "",
+    val address: String = "",
+    val notes: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "devis_documents", indices = [Index("projectId"), Index("createdAt")])
+data class DevisDocumentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val projectId: Long,
+    val projectNameSnapshot: String,
+    val clientNameSnapshot: String,
+    val totalMaterials: Double,
+    val totalLabor: Double,
+    val totalHt: Double,
+    val tvaPercent: Double,
+    val tvaAmount: Double,
+    val totalTtc: Double,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "devis_lines", indices = [Index("devisId"), Index("section")])
+data class DevisLineEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val devisId: Long,
+    val section: String,
+    val description: String,
+    val quantity: Double,
+    val unit: String,
+    val unitPrice: Double,
+    val total: Double,
+    val category: String
+)
+
 @Entity(tableName = "labor_costs", indices = [Index("section"), Index("recordedAt")])
 data class LaborCostEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -128,11 +167,35 @@ interface AppDataDao {
 
     @Query("SELECT * FROM labor_costs WHERE section = :section ORDER BY recordedAt DESC")
     fun observeLaborCosts(section: String): Flow<List<LaborCostEntity>>
+
+    @Query("SELECT * FROM projects ORDER BY createdAt DESC")
+    fun observeProjects(): Flow<List<ProjectEntity>>
+
+    @Insert
+    suspend fun insertProject(project: ProjectEntity): Long
+
+    @Insert
+    suspend fun insertDevis(document: DevisDocumentEntity): Long
+
+    @Insert
+    suspend fun insertDevisLines(lines: List<DevisLineEntity>)
+
+    @Query("SELECT * FROM devis_documents WHERE projectId = :projectId ORDER BY createdAt DESC")
+    fun observeDevis(projectId: Long): Flow<List<DevisDocumentEntity>>
+
+    @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
+    fun observeDevisLines(devisId: Long): Flow<List<DevisLineEntity>>
+
+    @Query("SELECT * FROM calculation_costs ORDER BY section, recordedAt")
+    suspend fun allMaterialCostLines(): List<CalculationCostEntity>
+
+    @Query("SELECT * FROM labor_costs ORDER BY section, recordedAt")
+    suspend fun allLaborCostLines(): List<LaborCostEntity>
 }
 
 @Database(
-    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class, LaborRateEntity::class, LaborCostEntity::class],
-    version = 3,
+    entities = [AppSettingEntity::class, CustomUnitEntity::class, MaterialEntity::class, MaterialPriceHistoryEntity::class, CalculationCostEntity::class, LaborRateEntity::class, LaborCostEntity::class, ProjectEntity::class, DevisDocumentEntity::class, DevisLineEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class BtpDatabase : RoomDatabase() {
@@ -157,6 +220,20 @@ abstract class BtpDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, clientName TEXT NOT NULL, address TEXT NOT NULL, notes TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_projects_createdAt ON projects(createdAt)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS devis_documents (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, projectId INTEGER NOT NULL, projectNameSnapshot TEXT NOT NULL, clientNameSnapshot TEXT NOT NULL, totalMaterials REAL NOT NULL, totalLabor REAL NOT NULL, totalHt REAL NOT NULL, tvaPercent REAL NOT NULL, tvaAmount REAL NOT NULL, totalTtc REAL NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_devis_documents_projectId ON devis_documents(projectId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_devis_documents_createdAt ON devis_documents(createdAt)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS devis_lines (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, devisId INTEGER NOT NULL, section TEXT NOT NULL, description TEXT NOT NULL, quantity REAL NOT NULL, unit TEXT NOT NULL, unitPrice REAL NOT NULL, total REAL NOT NULL, category TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_devis_lines_devisId ON devis_lines(devisId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_devis_lines_section ON devis_lines(section)")
+            }
+        }
+
         @Volatile private var INSTANCE: BtpDatabase? = null
 
         fun getInstance(context: Context): BtpDatabase =
@@ -165,7 +242,7 @@ abstract class BtpDatabase : RoomDatabase() {
                     context.applicationContext,
                     BtpDatabase::class.java,
                     "btp_pro_dz.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
     }
 }
