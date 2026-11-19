@@ -43,6 +43,9 @@ import dz.btpprodz.data.MaterialEntity
 import dz.btpprodz.data.MaterialPriceHistoryEntity
 import dz.btpprodz.data.LaborRateEntity
 import dz.btpprodz.data.LaborCostEntity
+import dz.btpprodz.data.ProjectEntity
+import dz.btpprodz.data.DevisDocumentEntity
+import dz.btpprodz.data.DevisLineEntity
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -88,6 +91,7 @@ private fun BtpProDzApp() {
     var showColumnBeamCalculator by remember { mutableStateOf(false) }
     var selectedOtherSection by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var showProjects by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -107,14 +111,19 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                if (!showConcreteCalculator && !showFoundationCalculator && !showEarthworksCalculator && !showColumnBeamCalculator && selectedOtherSection == null && !showSettings) {
-                    OutlinedButton(onClick = { showSettings = true }) {
-                        Text(if (isArabic) "الإعدادات" else "Paramètres")
+                if (!showConcreteCalculator && !showFoundationCalculator && !showEarthworksCalculator && !showColumnBeamCalculator && selectedOtherSection == null && !showSettings && !showProjects) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showSettings = true }) {
+                            Text(if (isArabic) "الإعدادات" else "Paramètres")
+                        }
+                        Button(onClick = { showProjects = true }) {
+                            Text(if (isArabic) "المشاريع و Devis" else "Projets et devis")
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null || showSettings) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false }) {
+                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null || showSettings || showProjects) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false; showProjects = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
                     if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic); LaborCostSection(section = "الخرسانة", isArabic = isArabic) }
@@ -123,6 +132,7 @@ private fun BtpProDzApp() {
                     if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic) }
                     if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") { CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic) } }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
+                    if (showProjects) ProjectsScreen(isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -834,6 +844,96 @@ private fun SettingsScreen(isArabic: Boolean) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+
+@Composable
+private fun ProjectsScreen(isArabic: Boolean) {
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val scope = rememberCoroutineScope()
+    val projects by dao.observeProjects().collectAsState(initial = emptyList())
+    var projectName by remember { mutableStateOf("") }
+    var clientName by remember { mutableStateOf("") }
+    var selectedProjectId by remember { mutableStateOf<Long?>(null) }
+    val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
+    val devisList by if (selectedProjectId != null) dao.observeDevis(selectedProjectId!!).collectAsState(initial = emptyList()) else remember { mutableStateOf(emptyList()) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(if (isArabic) "المشاريع والـ Devis" else "Projets et devis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "أنشئ مشروعاً، ثم أنشئ وثيقة Devis تحفظ نسخة ثابتة من التكاليف والضريبة." else "Créez un projet puis un devis avec un instantané des coûts et de la TVA.")
+        OutlinedTextField(value = projectName, onValueChange = { projectName = it }, label = { Text(if (isArabic) "اسم المشروع" else "Nom du projet") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = clientName, onValueChange = { clientName = it }, label = { Text(if (isArabic) "اسم الزبون (اختياري)" else "Client (facultatif)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        Button(onClick = {
+            if (projectName.isNotBlank()) scope.launch {
+                val id = dao.insertProject(ProjectEntity(name = projectName.trim(), clientName = clientName.trim()))
+                selectedProjectId = id
+                projectName = ""
+                clientName = ""
+            }
+        }, enabled = projectName.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+            Text(if (isArabic) "إنشاء مشروع" else "Créer le projet")
+        }
+        Divider()
+        Text(if (isArabic) "قائمة المشاريع" else "Liste des projets", fontWeight = FontWeight.SemiBold)
+        if (projects.isEmpty()) Text(if (isArabic) "لا توجد مشاريع بعد." else "Aucun projet pour le moment.")
+        projects.forEach { project ->
+            val label = project.name + if (project.clientName.isNotBlank()) " — " + project.clientName else ""
+            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            else OutlinedButton(onClick = { selectedProjectId = project.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+        }
+        if (selectedProject != null) {
+            Divider()
+            Text(if (isArabic) "المشروع المحدد: " + selectedProject.name else "Projet sélectionné : " + selectedProject.name, fontWeight = FontWeight.Bold)
+            Button(onClick = {
+                scope.launch {
+                    val materialLines = dao.allMaterialCostLines()
+                    val laborLines = dao.allLaborCostLines()
+                    val materialTotal = materialLines.sumOf { it.totalCost }
+                    val laborTotal = laborLines.sumOf { it.totalCost }
+                    val ht = materialTotal + laborTotal
+                    val tva = dao.getSetting("tva_percent")?.value?.toDoubleOrNull() ?: 19.0
+                    val tax = ht * tva / 100.0
+                    val documentId = dao.insertDevis(
+                        DevisDocumentEntity(
+                            projectId = selectedProject.id,
+                            projectNameSnapshot = selectedProject.name,
+                            clientNameSnapshot = selectedProject.clientName,
+                            totalMaterials = materialTotal,
+                            totalLabor = laborTotal,
+                            totalHt = ht,
+                            tvaPercent = tva,
+                            tvaAmount = tax,
+                            totalTtc = ht + tax
+                        )
+                    )
+                    val rows = materialLines.map { line ->
+                        DevisLineEntity(devisId = documentId, section = line.section, description = line.materialName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "MATERIAL")
+                    } + laborLines.map { line ->
+                        DevisLineEntity(devisId = documentId, section = line.section, description = line.tradeName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "LABOR")
+                    }
+                    if (rows.isNotEmpty()) dao.insertDevisLines(rows)
+                }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (isArabic) "إنشاء Devis من التكاليف المسجلة" else "Créer un devis à partir des coûts")
+            }
+            Text(if (isArabic) "الوثائق المحفوظة" else "Documents enregistrés", fontWeight = FontWeight.SemiBold)
+            if (devisList.isEmpty()) Text(if (isArabic) "لم تُنشأ وثائق لهذا المشروع بعد." else "Aucun devis pour ce projet.")
+            devisList.forEach { doc ->
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(if (isArabic) "Devis رقم " + doc.id else "Devis n° " + doc.id, fontWeight = FontWeight.Bold)
+                        Text(if (isArabic) "المواد: " + "%.2f".format(doc.totalMaterials) + " دج" else "Matériaux : " + "%.2f".format(doc.totalMaterials) + " DA")
+                        Text(if (isArabic) "اليد العاملة: " + "%.2f".format(doc.totalLabor) + " دج" else "Main-d’œuvre : " + "%.2f".format(doc.totalLabor) + " DA")
+                        Text("HT : " + "%.2f".format(doc.totalHt) + " DA")
+                        Text("TVA (" + doc.tvaPercent + "%) : " + "%.2f".format(doc.tvaAmount) + " DA")
+                        Text("TTC : " + "%.2f".format(doc.totalTtc) + " DA", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Text(if (isArabic) "تنبيه: هذه النسخة تجمع حالياً جميع بنود التكاليف المسجلة في التطبيق، ولا تعزلها بعد حسب المشروع. لا تعتمد الوثيقة كعرض نهائي قبل ربط كل بند بمعرّف المشروع." else "Note : cette version agrège tous les coûts enregistrés. L’affectation de chaque ligne à un projet sera ajoutée avant usage comme devis final.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     }
 }
 
