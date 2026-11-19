@@ -41,6 +41,8 @@ import dz.btpprodz.data.CustomUnitEntity
 import dz.btpprodz.data.CalculationCostEntity
 import dz.btpprodz.data.MaterialEntity
 import dz.btpprodz.data.MaterialPriceHistoryEntity
+import dz.btpprodz.data.LaborRateEntity
+import dz.btpprodz.data.LaborCostEntity
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -115,11 +117,11 @@ private fun BtpProDzApp() {
                     OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
-                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic) }
-                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic) }
-                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic) }
-                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic) }
-                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic) }
+                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic); LaborCostSection(section = "الخرسانة", isArabic = isArabic) }
+                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic); LaborCostSection(section = "الأساسات", isArabic = isArabic) }
+                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic); LaborCostSection(section = "الحفر والردم", isArabic = isArabic) }
+                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic) }
+                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic) }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
                 } else {
                 Text(
@@ -662,6 +664,44 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+
+@Composable
+private fun LaborCostSection(section: String, isArabic: Boolean) {
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val scope = rememberCoroutineScope()
+    val rates by dao.observeLaborRates().collectAsState(initial = emptyList())
+    val costs by dao.observeLaborCosts(section).collectAsState(initial = emptyList())
+    var selectedId by remember(section) { mutableStateOf<Long?>(null) }
+    var quantityText by remember(section) { mutableStateOf("1") }
+    val rate = rates.firstOrNull { it.id == selectedId }
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val total = costs.sumOf { it.totalCost }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Divider()
+        Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + section, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (rates.isEmpty()) Text(if (isArabic) "أضف أسعار المهن من الإعدادات أولاً." else "Ajoutez les tarifs des métiers dans les paramètres.")
+        rates.forEach { item ->
+            val label = item.tradeName + " — " + item.unitPrice + " دج / " + item.unit
+            if (selectedId == item.id) Button(onClick = { selectedId = item.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            else OutlinedButton(onClick = { selectedId = item.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+        }
+        if (rate != null) {
+            NumberField(if (isArabic) "الكمية (" + rate.unit + ")" else "Quantité (" + rate.unit + ")", quantityText) { quantityText = it }
+            Text(if (isArabic) "التكلفة التقديرية: " + "%.2f".format(quantity * rate.unitPrice) + " دج" else "Coût estimé : " + "%.2f".format(quantity * rate.unitPrice) + " DA")
+            Button(onClick = {
+                if (quantity > 0) scope.launch {
+                    dao.insertLaborCost(LaborCostEntity(section = section, tradeName = rate.tradeName, quantity = quantity, unit = rate.unit, unitPriceSnapshot = rate.unitPrice, totalCost = quantity * rate.unitPrice))
+                    quantityText = "1"
+                }
+            }, enabled = quantity > 0, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
+        }
+        Text(if (isArabic) "مجموع اليد العاملة المسجل: " + "%.2f".format(total) + " دج" else "Total main-d’œuvre : " + "%.2f".format(total) + " DA", fontWeight = FontWeight.Bold)
+        costs.forEach { item -> Text("• " + item.tradeName + ": " + item.quantity + " " + item.unit + " × " + item.unitPriceSnapshot + " = " + "%.2f".format(item.totalCost) + " DA", style = MaterialTheme.typography.bodySmall) }
+        Text(if (isArabic) "يُحفظ سعر المهنة وقت تسجيل البند ولا يتغير عند تحديث السعر." else "Le tarif est figé au moment de l’enregistrement.", style = MaterialTheme.typography.bodySmall)
     }
 }
 
