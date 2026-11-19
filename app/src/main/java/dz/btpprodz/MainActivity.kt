@@ -600,11 +600,12 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
 
     val selectedMaterial = materials.firstOrNull { it.id == selectedMaterialId }
     val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val valid = selectedMaterial != null && quantity > 0.0
+    val valid = selectedMaterial != null && quantity > 0.0 && projectId != null
     val estimatedCost = if (valid) quantity * (selectedMaterial?.currentPrice ?: 0.0) else 0.0
     val totalRecorded = costs.sumOf { it.totalCost }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (projectId == null) Text(if (isArabic) "اختر مشروعاً من شاشة المشاريع قبل تسجيل التكاليف." else "Sélectionnez un projet dans l’écran Projets avant d’enregistrer des coûts.", color = MaterialTheme.colorScheme.error)
         Divider()
         Text(if (isArabic) "تكلفة المواد — $section" else "Coût des matériaux — ${when(section) {
             "الخرسانة" -> "Béton"
@@ -696,6 +697,7 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
     val quantity = quantityText.toDoubleOrNull() ?: 0.0
     val total = costs.sumOf { it.totalCost }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (projectId == null) Text(if (isArabic) "اختر مشروعاً من شاشة المشاريع قبل تسجيل التكاليف." else "Sélectionnez un projet dans l’écran Projets avant d’enregistrer des coûts.", color = MaterialTheme.colorScheme.error)
         Divider()
         Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + section, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (rates.isEmpty()) Text(if (isArabic) "أضف أسعار المهن من الإعدادات أولاً." else "Ajoutez les tarifs des métiers dans les paramètres.")
@@ -712,7 +714,7 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
                     dao.insertLaborCost(LaborCostEntity(section = section, tradeName = rate.tradeName, quantity = quantity, unit = rate.unit, unitPriceSnapshot = rate.unitPrice, totalCost = quantity * rate.unitPrice, projectId = projectId))
                     quantityText = "1"
                 }
-            }, enabled = quantity > 0, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
+            }, enabled = quantity > 0 && projectId != null, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
         }
         Text(if (isArabic) "مجموع اليد العاملة المسجل: " + "%.2f".format(total) + " دج" else "Total main-d’œuvre : " + "%.2f".format(total) + " DA", fontWeight = FontWeight.Bold)
         costs.forEach { item -> Text("• " + item.tradeName + ": " + item.quantity + " " + item.unit + " × " + item.unitPriceSnapshot + " = " + "%.2f".format(item.totalCost) + " DA", style = MaterialTheme.typography.bodySmall) }
