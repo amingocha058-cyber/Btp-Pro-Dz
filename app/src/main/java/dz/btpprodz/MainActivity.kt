@@ -859,8 +859,7 @@ private fun SettingsScreen(isArabic: Boolean) {
 private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit) {
     val context = LocalContext.current
     val database = remember { BtpDatabase.getInstance(context) }
-    val context = LocalContext.current
-    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val dao = remember { database.appDataDao() }
     val scope = rememberCoroutineScope()
     val projects by dao.observeProjects().collectAsState(initial = emptyList())
     var projectName by remember { mutableStateOf("") }
