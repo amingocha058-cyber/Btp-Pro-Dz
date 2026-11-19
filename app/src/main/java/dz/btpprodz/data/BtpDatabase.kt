@@ -155,6 +155,9 @@ interface AppDataDao {
     @Query("SELECT * FROM calculation_costs WHERE section = :section ORDER BY recordedAt DESC")
     fun observeCalculationCosts(section: String): Flow<List<CalculationCostEntity>>
 
+    @Query("SELECT * FROM calculation_costs WHERE section = :section AND projectId = :projectId ORDER BY recordedAt DESC")
+    fun observeCalculationCostsForProject(section: String, projectId: Long): Flow<List<CalculationCostEntity>>
+
     @Query("SELECT * FROM labor_rates ORDER BY tradeName COLLATE NOCASE")
     fun observeLaborRates(): Flow<List<LaborRateEntity>>
 
@@ -169,6 +172,9 @@ interface AppDataDao {
 
     @Query("SELECT * FROM labor_costs WHERE section = :section ORDER BY recordedAt DESC")
     fun observeLaborCosts(section: String): Flow<List<LaborCostEntity>>
+
+    @Query("SELECT * FROM labor_costs WHERE section = :section AND projectId = :projectId ORDER BY recordedAt DESC")
+    fun observeLaborCostsForProject(section: String, projectId: Long): Flow<List<LaborCostEntity>>
 
     @Query("SELECT * FROM projects ORDER BY createdAt DESC")
     fun observeProjects(): Flow<List<ProjectEntity>>
