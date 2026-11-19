@@ -872,6 +872,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     }
     val devisList by devisFlow.collectAsState(initial = emptyList())
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
+    var devisMessage by remember { mutableStateOf<String?>(null) }
     val selectedLinesFlow = remember(selectedDevisId) {
         selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
     }
@@ -886,6 +887,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             if (projectName.isNotBlank()) scope.launch {
                 val id = dao.insertProject(ProjectEntity(name = projectName.trim(), clientName = clientName.trim()))
                 selectedProjectId = id
+                selectedDevisId = null
+                devisMessage = null
                 onProjectSelected(id)
                 projectName = ""
                 clientName = ""
@@ -898,7 +901,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
         if (projects.isEmpty()) Text(if (isArabic) "لا توجد مشاريع بعد." else "Aucun projet pour le moment.")
         projects.forEach { project ->
             val label = project.name + if (project.clientName.isNotBlank()) " — " + project.clientName else ""
-            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; selectedDevisId = null; devisMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
             else OutlinedButton(onClick = { selectedProjectId = project.id; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
         }
         if (selectedProject != null) {
@@ -910,35 +913,42 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                     database.withTransaction {
                     val materialLines = dao.materialCostLinesForProject(selectedProject.id)
                     val laborLines = dao.laborCostLinesForProject(selectedProject.id)
-                    val materialTotal = materialLines.sumOf { it.totalCost }
-                    val laborTotal = laborLines.sumOf { it.totalCost }
-                    val ht = materialTotal + laborTotal
-                    val tva = dao.getSetting("tva_percent")?.value?.toDoubleOrNull() ?: 19.0
-                    val tax = ht * tva / 100.0
-                    val documentId = dao.insertDevis(
-                        DevisDocumentEntity(
-                            projectId = selectedProject.id,
-                            projectNameSnapshot = selectedProject.name,
-                            clientNameSnapshot = selectedProject.clientName,
-                            totalMaterials = materialTotal,
-                            totalLabor = laborTotal,
-                            totalHt = ht,
-                            tvaPercent = tva,
-                            tvaAmount = tax,
-                            totalTtc = ht + tax
-                        )
-                    )
                     val rows = materialLines.map { line ->
-                        DevisLineEntity(devisId = documentId, section = line.section, description = line.materialName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "MATERIAL")
+                        DevisLineEntity(devisId = 0, section = line.section, description = line.materialName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "MATERIAL")
                     } + laborLines.map { line ->
-                        DevisLineEntity(devisId = documentId, section = line.section, description = line.tradeName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "LABOR")
+                        DevisLineEntity(devisId = 0, section = line.section, description = line.tradeName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "LABOR")
                     }
-                    if (rows.isNotEmpty()) dao.insertDevisLines(rows)
+                    if (rows.isEmpty()) {
+                        devisMessage = if (isArabic) "لا يمكن إنشاء Devis فارغ. أضف تكاليف المواد أو اليد العاملة لهذا المشروع أولاً." else "Impossible de créer un devis vide. Ajoutez d’abord des coûts au projet."
+                    } else {
+                        val materialTotal = materialLines.sumOf { it.totalCost }
+                        val laborTotal = laborLines.sumOf { it.totalCost }
+                        val ht = materialTotal + laborTotal
+                        val tva = dao.getSetting("tva_percent")?.value?.toDoubleOrNull() ?: 19.0
+                        val tax = ht * tva / 100.0
+                        val documentId = dao.insertDevis(
+                            DevisDocumentEntity(
+                                projectId = selectedProject.id,
+                                projectNameSnapshot = selectedProject.name,
+                                clientNameSnapshot = selectedProject.clientName,
+                                totalMaterials = materialTotal,
+                                totalLabor = laborTotal,
+                                totalHt = ht,
+                                tvaPercent = tva,
+                                tvaAmount = tax,
+                                totalTtc = ht + tax
+                            )
+                        )
+                        dao.insertDevisLines(rows.map { it.copy(devisId = documentId) })
+                        selectedDevisId = documentId
+                        devisMessage = if (isArabic) "تم إنشاء وثيقة Devis وحفظ تفاصيلها." else "Le devis et ses lignes ont été enregistrés."
+                    }
                     }
                 }
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (isArabic) "إنشاء Devis من التكاليف المسجلة" else "Créer un devis à partir des coûts")
             }
+            devisMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             Text(if (isArabic) "الوثائق المحفوظة" else "Documents enregistrés", fontWeight = FontWeight.SemiBold)
             if (devisList.isEmpty()) Text(if (isArabic) "لم تُنشأ وثائق لهذا المشروع بعد." else "Aucun devis pour ce projet.")
             devisList.forEach { doc ->
