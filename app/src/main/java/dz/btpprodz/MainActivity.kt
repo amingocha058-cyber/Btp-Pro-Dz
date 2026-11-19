@@ -93,6 +93,7 @@ private fun BtpProDzApp() {
     var selectedOtherSection by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showProjects by remember { mutableStateOf(false) }
+    var activeProjectId by remember { mutableStateOf<Long?>(null) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -127,13 +128,13 @@ private fun BtpProDzApp() {
                     OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false; showProjects = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
-                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic); LaborCostSection(section = "الخرسانة", isArabic = isArabic) }
-                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic); LaborCostSection(section = "الأساسات", isArabic = isArabic) }
-                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic); LaborCostSection(section = "الحفر والردم", isArabic = isArabic) }
-                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic) }
-                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") { CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic) } }
+                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId) }
+                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") { CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId) } }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
-                    if (showProjects) ProjectsScreen(isArabic = isArabic)
+                    if (showProjects) ProjectsScreen(isArabic = isArabic, onProjectSelected = { activeProjectId = it })
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -587,12 +588,13 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
 
 
 @Composable
-private fun CostEstimatorSection(section: String, isArabic: Boolean) {
+private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: Long?) {
     val context = LocalContext.current
     val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
     val materials by dao.observeMaterials().collectAsState(initial = emptyList())
-    val costs by dao.observeCalculationCosts(section).collectAsState(initial = emptyList())
+    val costsFlow = remember(section, projectId) { projectId?.let { dao.observeCalculationCostsForProject(section, it) } ?: flowOf(emptyList()) }
+    val costs by costsFlow.collectAsState(initial = emptyList())
     var selectedMaterialId by remember(section) { mutableStateOf<Long?>(null) }
     var quantityText by remember(section) { mutableStateOf("1") }
 
@@ -649,7 +651,8 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean) {
                                     quantity = quantity,
                                     unit = material.unit,
                                     unitPriceSnapshot = material.currentPrice,
-                                    totalCost = quantity * material.currentPrice
+                                    totalCost = quantity * material.currentPrice,
+                                    projectId = projectId
                                 )
                             )
                             quantityText = "1"
@@ -680,12 +683,13 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean) {
 
 
 @Composable
-private fun LaborCostSection(section: String, isArabic: Boolean) {
+private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long?) {
     val context = LocalContext.current
     val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
     val rates by dao.observeLaborRates().collectAsState(initial = emptyList())
-    val costs by dao.observeLaborCosts(section).collectAsState(initial = emptyList())
+    val costsFlow = remember(section, projectId) { projectId?.let { dao.observeLaborCostsForProject(section, it) } ?: flowOf(emptyList()) }
+    val costs by costsFlow.collectAsState(initial = emptyList())
     var selectedId by remember(section) { mutableStateOf<Long?>(null) }
     var quantityText by remember(section) { mutableStateOf("1") }
     val rate = rates.firstOrNull { it.id == selectedId }
@@ -705,7 +709,7 @@ private fun LaborCostSection(section: String, isArabic: Boolean) {
             Text(if (isArabic) "التكلفة التقديرية: " + "%.2f".format(quantity * rate.unitPrice) + " دج" else "Coût estimé : " + "%.2f".format(quantity * rate.unitPrice) + " DA")
             Button(onClick = {
                 if (quantity > 0) scope.launch {
-                    dao.insertLaborCost(LaborCostEntity(section = section, tradeName = rate.tradeName, quantity = quantity, unit = rate.unit, unitPriceSnapshot = rate.unitPrice, totalCost = quantity * rate.unitPrice))
+                    dao.insertLaborCost(LaborCostEntity(section = section, tradeName = rate.tradeName, quantity = quantity, unit = rate.unit, unitPriceSnapshot = rate.unitPrice, totalCost = quantity * rate.unitPrice, projectId = projectId))
                     quantityText = "1"
                 }
             }, enabled = quantity > 0, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
@@ -850,7 +854,7 @@ private fun SettingsScreen(isArabic: Boolean) {
 
 
 @Composable
-private fun ProjectsScreen(isArabic: Boolean) {
+private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit) {
     val context = LocalContext.current
     val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
@@ -873,6 +877,7 @@ private fun ProjectsScreen(isArabic: Boolean) {
             if (projectName.isNotBlank()) scope.launch {
                 val id = dao.insertProject(ProjectEntity(name = projectName.trim(), clientName = clientName.trim()))
                 selectedProjectId = id
+                onProjectSelected(id)
                 projectName = ""
                 clientName = ""
             }
@@ -884,21 +889,13 @@ private fun ProjectsScreen(isArabic: Boolean) {
         if (projects.isEmpty()) Text(if (isArabic) "لا توجد مشاريع بعد." else "Aucun projet pour le moment.")
         projects.forEach { project ->
             val label = project.name + if (project.clientName.isNotBlank()) " — " + project.clientName else ""
-            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
-            else OutlinedButton(onClick = { selectedProjectId = project.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            else OutlinedButton(onClick = { selectedProjectId = project.id; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
         }
         if (selectedProject != null) {
             Divider()
             Text(if (isArabic) "المشروع المحدد: " + selectedProject.name else "Projet sélectionné : " + selectedProject.name, fontWeight = FontWeight.Bold)
-            Button(onClick = {
-                scope.launch {
-                    dao.assignUnassignedMaterialCosts(selectedProject.id)
-                    dao.assignUnassignedLaborCosts(selectedProject.id)
-                }
-            }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (isArabic) "إسناد التكاليف غير المرتبطة إلى هذا المشروع" else "Affecter les coûts non associés à ce projet")
-            }
-            Text(if (isArabic) "هذا الإجراء ينقل كل البنود غير المرتبطة حالياً إلى المشروع المحدد. بعد ذلك أنشئ Devis خاصاً به." else "Cette action affecte au projet sélectionné toutes les lignes qui ne sont liées à aucun projet. Créez ensuite son devis.")
+            Text(if (isArabic) "اختر المشروع أولاً من هذه القائمة، ثم أضف تكاليف المواد واليد العاملة من أقسام الأشغال. لن تُنقل البنود القديمة غير المرتبطة تلقائياً حتى لا تختلط تكاليف المشاريع." else "Sélectionnez d’abord ce projet, puis ajoutez les coûts depuis les rubriques. Les anciennes lignes non associées ne sont pas déplacées automatiquement afin d’éviter tout mélange.")
             Button(onClick = {
                 scope.launch {
                     val materialLines = dao.materialCostLinesForProject(selectedProject.id)
