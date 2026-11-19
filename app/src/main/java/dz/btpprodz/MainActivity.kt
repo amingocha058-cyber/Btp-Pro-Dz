@@ -507,8 +507,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
             NumberField(if (isArabic) if (isWall || isFinish) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
             if (isWall || isFinish) {
                 NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
-            } else if (!isStairs) {
-                NumberField(if (isArabic) if (isRoof) "سماكة البلاطة (م)" else "طول البلاطة / المساحة (م)" else if (isRoof) "Épaisseur de dalle (m)" else "Dimension (m)", heightText) { heightText = it }
+            } else if (!isStairs && !isRoof) {
+                NumberField(if (isArabic) "البعد الإضافي (م)" else "Dimension supplémentaire (m)", heightText) { heightText = it }
             }
             if (isFloor) {
                 NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
