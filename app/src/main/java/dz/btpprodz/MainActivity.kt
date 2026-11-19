@@ -69,6 +69,7 @@ private fun BtpProDzApp() {
     var isArabic by remember { mutableStateOf(true) }
     var selectedView by remember { mutableStateOf(0) }
     var showConcreteCalculator by remember { mutableStateOf(false) }
+    var showFoundationCalculator by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -88,11 +89,12 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                if (showConcreteCalculator) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false }) {
+                if (showConcreteCalculator || showFoundationCalculator) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
-                    ConcreteCalculator(isArabic = isArabic)
+                    if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
+                    if (showFoundationCalculator) FoundationCalculator(isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -129,6 +131,7 @@ private fun BtpProDzApp() {
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     if (section.ar == "الخرسانة") showConcreteCalculator = true
+                                    if (section.ar == "الأساسات") showFoundationCalculator = true
                                 },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
@@ -219,6 +222,80 @@ private fun ConcreteCalculator(isArabic: Boolean) {
             }
         }
         Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+
+@Composable
+private fun FoundationCalculator(isArabic: Boolean) {
+    var foundationType by remember { mutableStateOf(0) }
+    var quantityText by remember { mutableStateOf("4") }
+    var lengthText by remember { mutableStateOf("1.20") }
+    var widthText by remember { mutableStateOf("1.20") }
+    var depthText by remember { mutableStateOf("0.40") }
+
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.toDoubleOrNull() ?: 0.0
+    val width = widthText.toDoubleOrNull() ?: 0.0
+    val depth = depthText.toDoubleOrNull() ?: 0.0
+    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && depth > 0
+    val unitVolume = length * width * depth
+    val totalVolume = if (valid) quantity * unitVolume else 0.0
+    val typesAr = listOf("قواعد منفردة", "قواعد شريطية", "سملات / ميدات")
+    val typesFr = listOf("Semelles isolées", "Semelles filantes", "Longrines")
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            if (isArabic) "حاسبة الأساسات" else "Calculateur des fondations",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(if (isArabic) "نوع الأساس" else "Type de fondation")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            typesAr.forEachIndexed { index, ar ->
+                if (foundationType == index) {
+                    Button(onClick = { foundationType = index }) {
+                        Text(if (isArabic) ar else typesFr[index])
+                    }
+                } else {
+                    OutlinedButton(onClick = { foundationType = index }) {
+                        Text(if (isArabic) ar else typesFr[index])
+                    }
+                }
+            }
+        }
+        NumberField(if (isArabic) "العدد" else "Quantité", quantityText) { quantityText = it }
+        NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
+        NumberField(if (isArabic) "العرض (م)" else "Largeur (m)", widthText) { widthText = it }
+        NumberField(if (isArabic) "الارتفاع / العمق (م)" else "Hauteur / profondeur (m)", depthText) { depthText = it }
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "نوع الأساس: ${typesAr[foundationType]}" else "Type : ${typesFr[foundationType]}")
+                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Quantité : ${if (quantity >= 0) quantity.toInt() else 0}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(unitVolume)} م³" else "Volume unitaire : ${"%.3f".format(unitVolume)} m³")
+                Text(
+                    if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!valid) {
+                    Text(
+                        if (isArabic) "أدخل عدداً صحيحاً وأبعاداً أكبر من الصفر." else "Saisissez une quantité entière et des dimensions supérieures à zéro.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+        Text(
+            if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع. هذه حاسبة حجم أولية، ويجب إدخال الأبعاد حسب شكل العنصر." else "Calcul : quantité × longueur × largeur × hauteur. Calcul volumique simple, selon les dimensions de l’élément.",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
