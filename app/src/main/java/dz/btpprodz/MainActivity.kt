@@ -902,6 +902,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             Text(if (isArabic) "اختر المشروع أولاً من هذه القائمة، ثم أضف تكاليف المواد واليد العاملة من أقسام الأشغال. لن تُنقل البنود القديمة غير المرتبطة تلقائياً حتى لا تختلط تكاليف المشاريع." else "Sélectionnez d’abord ce projet, puis ajoutez les coûts depuis les rubriques. Les anciennes lignes non associées ne sont pas déplacées automatiquement afin d’éviter tout mélange.")
             Button(onClick = {
                 scope.launch {
+                    database.withTransaction {
                     val materialLines = dao.materialCostLinesForProject(selectedProject.id)
                     val laborLines = dao.laborCostLinesForProject(selectedProject.id)
                     val materialTotal = materialLines.sumOf { it.totalCost }
@@ -928,6 +929,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         DevisLineEntity(devisId = documentId, section = line.section, description = line.tradeName, quantity = line.quantity, unit = line.unit, unitPrice = line.unitPriceSnapshot, total = line.totalCost, category = "LABOR")
                     }
                     if (rows.isNotEmpty()) dao.insertDevisLines(rows)
+                    }
                 }
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (isArabic) "إنشاء Devis من التكاليف المسجلة" else "Créer un devis à partir des coûts")
