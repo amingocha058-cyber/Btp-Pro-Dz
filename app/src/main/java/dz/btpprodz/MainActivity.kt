@@ -70,6 +70,7 @@ private fun BtpProDzApp() {
     var selectedView by remember { mutableStateOf(0) }
     var showConcreteCalculator by remember { mutableStateOf(false) }
     var showFoundationCalculator by remember { mutableStateOf(false) }
+    var showEarthworksCalculator by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -89,12 +90,13 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                if (showConcreteCalculator || showFoundationCalculator) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false }) {
+                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
                     if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
                     if (showFoundationCalculator) FoundationCalculator(isArabic = isArabic)
+                    if (showEarthworksCalculator) EarthworksCalculator(isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -132,6 +134,7 @@ private fun BtpProDzApp() {
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     if (section.ar == "الخرسانة") showConcreteCalculator = true
                                     if (section.ar == "الأساسات") showFoundationCalculator = true
+                                    if (section.ar == "الحفر والردم") showEarthworksCalculator = true
                                 },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
@@ -294,6 +297,74 @@ private fun FoundationCalculator(isArabic: Boolean) {
         }
         Text(
             if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع. هذه حاسبة حجم أولية، ويجب إدخال الأبعاد حسب شكل العنصر." else "Calcul : quantité × longueur × largeur × hauteur. Calcul volumique simple, selon les dimensions de l’élément.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+
+@Composable
+private fun EarthworksCalculator(isArabic: Boolean) {
+    var operation by remember { mutableStateOf(0) }
+    var quantityText by remember { mutableStateOf("1") }
+    var lengthText by remember { mutableStateOf("10") }
+    var widthText by remember { mutableStateOf("5") }
+    var depthText by remember { mutableStateOf("1") }
+
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.toDoubleOrNull() ?: 0.0
+    val width = widthText.toDoubleOrNull() ?: 0.0
+    val depth = depthText.toDoubleOrNull() ?: 0.0
+    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && depth > 0
+    val unitVolume = length * width * depth
+    val totalVolume = if (valid) quantity * unitVolume else 0.0
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            if (isArabic) "حاسبة الحفر والردم" else "Calculateur de terrassement",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (operation == 0) Button(onClick = { operation = 0 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الحفر" else "Déblai")
+            } else OutlinedButton(onClick = { operation = 0 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الحفر" else "Déblai")
+            }
+            if (operation == 1) Button(onClick = { operation = 1 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الردم" else "Remblai")
+            } else OutlinedButton(onClick = { operation = 1 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الردم" else "Remblai")
+            }
+        }
+        NumberField(if (isArabic) "عدد الحفريات / المساحات" else "Nombre de zones", quantityText) { quantityText = it }
+        NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
+        NumberField(if (isArabic) "العرض (م)" else "Largeur (m)", widthText) { widthText = it }
+        NumberField(if (isArabic) "العمق أو الارتفاع (م)" else "Profondeur ou hauteur (m)", depthText) { depthText = it }
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "العملية: ${if (operation == 0) "حفر" else "ردم"}" else "Opération : ${if (operation == 0) "Déblai" else "Remblai"}")
+                Text(if (isArabic) "عدد المناطق: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre de zones : ${if (quantity >= 0) quantity.toInt() else 0}")
+                Text(if (isArabic) "حجم المنطقة الواحدة: ${"%.3f".format(unitVolume)} م³" else "Volume par zone : ${"%.3f".format(unitVolume)} m³")
+                Text(
+                    if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!valid) Text(
+                    if (isArabic) "أدخل عدداً صحيحاً وأبعاداً أكبر من الصفر." else "Saisissez un nombre entier et des dimensions positives.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        Text(
+            if (isArabic) "الحساب الهندسي المبسط: العدد × الطول × العرض × العمق/الارتفاع. لا يشمل معامل انتفاش التربة أو الدمك." else "Calcul géométrique simple : nombre × longueur × largeur × profondeur/hauteur. Hors foisonnement et compactage.",
             style = MaterialTheme.typography.bodySmall
         )
     }
