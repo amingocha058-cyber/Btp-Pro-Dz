@@ -71,6 +71,7 @@ private fun BtpProDzApp() {
     var showConcreteCalculator by remember { mutableStateOf(false) }
     var showFoundationCalculator by remember { mutableStateOf(false) }
     var showEarthworksCalculator by remember { mutableStateOf(false) }
+    var showColumnBeamCalculator by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -90,13 +91,14 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false }) {
+                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
                     if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
                     if (showFoundationCalculator) FoundationCalculator(isArabic = isArabic)
                     if (showEarthworksCalculator) EarthworksCalculator(isArabic = isArabic)
+                    if (showColumnBeamCalculator) ColumnBeamCalculator(isArabic = isArabic)
                 } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
@@ -135,6 +137,7 @@ private fun BtpProDzApp() {
                                     if (section.ar == "الخرسانة") showConcreteCalculator = true
                                     if (section.ar == "الأساسات") showFoundationCalculator = true
                                     if (section.ar == "الحفر والردم") showEarthworksCalculator = true
+                                    if (section.ar == "الأعمدة والجسور") showColumnBeamCalculator = true
                                 },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
@@ -365,6 +368,75 @@ private fun EarthworksCalculator(isArabic: Boolean) {
         }
         Text(
             if (isArabic) "الحساب الهندسي المبسط: العدد × الطول × العرض × العمق/الارتفاع. لا يشمل معامل انتفاش التربة أو الدمك." else "Calcul géométrique simple : nombre × longueur × largeur × profondeur/hauteur. Hors foisonnement et compactage.",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+
+@Composable
+private fun ColumnBeamCalculator(isArabic: Boolean) {
+    var elementType by remember { mutableStateOf(0) }
+    var quantityText by remember { mutableStateOf("4") }
+    var lengthText by remember { mutableStateOf("3.00") }
+    var widthText by remember { mutableStateOf("0.25") }
+    var heightText by remember { mutableStateOf("0.40") }
+
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.toDoubleOrNull() ?: 0.0
+    val width = widthText.toDoubleOrNull() ?: 0.0
+    val height = heightText.toDoubleOrNull() ?: 0.0
+    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && height > 0
+    val unitVolume = length * width * height
+    val totalVolume = if (valid) quantity * unitVolume else 0.0
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            if (isArabic) "حاسبة الأعمدة والجسور" else "Calculateur des poteaux et poutres",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(if (isArabic) "اختر نوع العنصر" else "Type d’élément")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (elementType == 0) Button(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الأعمدة" else "Poteaux")
+            } else OutlinedButton(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الأعمدة" else "Poteaux")
+            }
+            if (elementType == 1) Button(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الجسور" else "Poutres")
+            } else OutlinedButton(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
+                Text(if (isArabic) "الجسور" else "Poutres")
+            }
+        }
+        NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
+        NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
+        NumberField(if (isArabic) "عرض المقطع (م)" else "Largeur de section (m)", widthText) { widthText = it }
+        NumberField(if (isArabic) "ارتفاع المقطع (م)" else "Hauteur de section (m)", heightText) { heightText = it }
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "نوع العنصر: ${if (elementType == 0) "عمود" else "جسر"}" else "Élément : ${if (elementType == 0) "Poteau" else "Poutre"}")
+                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre d’éléments : ${if (quantity >= 0) quantity.toInt() else 0}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(unitVolume)} م³" else "Volume unitaire : ${"%.3f".format(unitVolume)} m³")
+                Text(
+                    if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!valid) Text(
+                    if (isArabic) "أدخل عدداً صحيحاً وأبعاداً أكبر من الصفر." else "Saisissez une quantité entière et des dimensions positives.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        Text(
+            if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
             style = MaterialTheme.typography.bodySmall
         )
     }
