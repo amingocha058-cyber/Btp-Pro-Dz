@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
 import dz.btpprodz.data.CustomUnitEntity
+import dz.btpprodz.data.CalculationCostEntity
 import dz.btpprodz.data.MaterialEntity
 import dz.btpprodz.data.MaterialPriceHistoryEntity
 import kotlinx.coroutines.launch
@@ -114,11 +115,11 @@ private fun BtpProDzApp() {
                     OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
-                    if (showConcreteCalculator) ConcreteCalculator(isArabic = isArabic)
-                    if (showFoundationCalculator) FoundationCalculator(isArabic = isArabic)
-                    if (showEarthworksCalculator) EarthworksCalculator(isArabic = isArabic)
-                    if (showColumnBeamCalculator) ColumnBeamCalculator(isArabic = isArabic)
-                    if (selectedOtherSection != null) OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic)
+                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic) }
+                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic) }
+                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic) }
+                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic) }
+                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic) }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
                 } else {
                 Text(
@@ -570,6 +571,99 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     }
 }
 
+
+
+@Composable
+private fun CostEstimatorSection(section: String, isArabic: Boolean) {
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val scope = rememberCoroutineScope()
+    val materials by dao.observeMaterials().collectAsState(initial = emptyList())
+    val costs by dao.observeCalculationCosts(section).collectAsState(initial = emptyList())
+    var selectedMaterialId by remember(section) { mutableStateOf<Long?>(null) }
+    var quantityText by remember(section) { mutableStateOf("1") }
+
+    val selectedMaterial = materials.firstOrNull { it.id == selectedMaterialId }
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val valid = selectedMaterial != null && quantity > 0.0
+    val estimatedCost = if (valid) quantity * (selectedMaterial?.currentPrice ?: 0.0) else 0.0
+    val totalRecorded = costs.sumOf { it.totalCost }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Divider()
+        Text(if (isArabic) "تكلفة المواد — $section" else "Coût des matériaux — ${when(section) {
+            "الخرسانة" -> "Béton"
+            "الأساسات" -> "Fondations"
+            "الأعمدة والجسور" -> "Poteaux et poutres"
+            "الجدران والبناء" -> "Maçonnerie"
+            "السقوف والبلاطات" -> "Planchers et dalles"
+            "التلبيس والطلاء" -> "Enduit et peinture"
+            "الأرضيات والتبليط" -> "Revêtements"
+            "الحفر والردم" -> "Terrassement"
+            "السلالم" -> "Escaliers"
+            else -> "Main-d’œuvre"
+        }}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (materials.isEmpty()) {
+            Text(if (isArabic) "أضف أسعار المواد أولاً من الإعدادات حتى تتمكن من حساب التكلفة." else "Ajoutez d’abord les prix des matériaux dans les paramètres.")
+        } else {
+            Text(if (isArabic) "اختر المادة" else "Choisir un matériau")
+            materials.forEach { material ->
+                val label = "${material.name} — ${material.currentPrice} دج / ${material.unit}"
+                if (selectedMaterialId == material.id) {
+                    Button(onClick = { selectedMaterialId = material.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                } else {
+                    OutlinedButton(onClick = { selectedMaterialId = material.id }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                }
+            }
+            NumberField(
+                if (isArabic) "الكمية المستهلكة (${selectedMaterial?.unit ?: "الوحدة"})" else "Quantité consommée (${selectedMaterial?.unit ?: "unité"})",
+                quantityText
+            ) { quantityText = it }
+            Text(
+                if (isArabic) "التكلفة التقديرية: ${"%.2f".format(estimatedCost)} دج" else "Coût estimé : ${"%.2f".format(estimatedCost)} DA",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Button(
+                onClick = {
+                    val material = selectedMaterial
+                    if (material != null && quantity > 0) {
+                        scope.launch {
+                            dao.insertCalculationCost(
+                                CalculationCostEntity(
+                                    section = section,
+                                    materialName = material.name,
+                                    quantity = quantity,
+                                    unit = material.unit,
+                                    unitPriceSnapshot = material.currentPrice,
+                                    totalCost = quantity * material.currentPrice
+                                )
+                            )
+                            quantityText = "1"
+                        }
+                    }
+                },
+                enabled = valid,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (isArabic) "حفظ بند التكلفة" else "Enregistrer le coût") }
+        }
+        Text(
+            if (isArabic) "مجموع بنود التكلفة المسجلة: ${"%.2f".format(totalRecorded)} دج" else "Total des coûts enregistrés : ${"%.2f".format(totalRecorded)} DA",
+            fontWeight = FontWeight.SemiBold
+        )
+        costs.forEach { cost ->
+            Text(
+                "• ${cost.materialName}: ${cost.quantity} ${cost.unit} × ${cost.unitPriceSnapshot} = ${"%.2f".format(cost.totalCost)} DA",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Text(
+            if (isArabic) "يُحفظ سعر الوحدة المستخدم في هذا البند كنسخة ثابتة؛ تحديث سعر المادة لاحقاً لا يغيّر هذا السجل. أدخل كمية الاستهلاك الفعلية، فالتطبيق لا يفترض نسب خلط أو هدر تلقائياً." else "Le prix unitaire utilisé est figé dans chaque ligne. Une mise à jour ultérieure du matériau ne modifie pas cet enregistrement. Saisissez la consommation réelle : aucun dosage ni taux de perte n’est supposé.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
 
 @Composable
 private fun SettingsScreen(isArabic: Boolean) {
