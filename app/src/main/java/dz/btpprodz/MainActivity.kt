@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
 private data class WorkSection(val ar: String, val fr: String, val descriptionAr: String, val descriptionFr: String)
 
 private val workSections = listOf(
-    WorkSection("الخرسانة", "Béton", "حساب الأحجام وكميات المواد", "Volumes et quantités des matériaux"),
+    WorkSection("الخرسانة", "Béton", "حساب عدد العناصر الخرسانية وأحجامها وكميات المواد", "Nombre d’éléments en béton, volumes et quantités des matériaux"),
     WorkSection("الأساسات", "Fondations", "القواعد والسملات والحفر", "Semelles, longrines et fouilles"),
     WorkSection("الأعمدة والجسور", "Poteaux et poutres", "الأبعاد والكميات", "Dimensions et quantités"),
     WorkSection("الجدران والبناء", "Maçonnerie", "مساحات الجدران والآجر والمونة", "Surfaces, briques et mortier"),
