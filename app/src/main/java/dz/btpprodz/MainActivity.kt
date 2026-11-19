@@ -3,6 +3,7 @@ package dz.btpprodz
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +68,7 @@ private val constructionStages = listOf(
 private fun BtpProDzApp() {
     var isArabic by remember { mutableStateOf(true) }
     var selectedView by remember { mutableStateOf(0) }
+    var showConcreteCalculator by remember { mutableStateOf(false) }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -85,6 +88,12 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+                if (showConcreteCalculator) {
+                    OutlinedButton(onClick = { showConcreteCalculator = false }) {
+                        Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
+                    }
+                    ConcreteCalculator(isArabic = isArabic)
+                } else {
                 Text(
                     if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
                     style = MaterialTheme.typography.titleLarge,
@@ -118,7 +127,9 @@ private fun BtpProDzApp() {
                     if (selectedView == 0) {
                         items(workSections) { section ->
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    if (section.ar == "الخرسانة") showConcreteCalculator = true
+                                },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -153,7 +164,52 @@ private fun BtpProDzApp() {
                         }
                     }
                 }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ConcreteCalculator(isArabic: Boolean) {
+    var elementType by remember { mutableStateOf(0) }
+    var quantityText by remember { mutableStateOf("1") }
+    var lengthText by remember { mutableStateOf("0.30") }
+    var widthText by remember { mutableStateOf("0.30") }
+    var heightText by remember { mutableStateOf("3.00") }
+
+    val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
+    val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
+    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.toDoubleOrNull() ?: 0.0
+    val width = widthText.toDoubleOrNull() ?: 0.0
+    val height = heightText.toDoubleOrNull() ?: 0.0
+    val totalVolume = if (quantity > 0 && length > 0 && width > 0 && height > 0) quantity * length * width * height else 0.0
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(if (isArabic) "حساب عدد وحجم العناصر الخرسانية" else "Nombre et volume des éléments en béton", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "اختر نوع العنصر" else "Choisissez le type d’élément")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            typesAr.forEachIndexed { index, ar ->
+                if (elementType == index) Button(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
+                else OutlinedButton(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
+            }
+        }
+        NumberField(if (isArabic) "العدد" else "Quantité", quantityText) { quantityText = it }
+        NumberField(if (isArabic) "الطول (متر)" else "Longueur (m)", lengthText) { lengthText = it }
+        NumberField(if (isArabic) "العرض (متر)" else "Largeur (m)", widthText) { widthText = it }
+        NumberField(if (isArabic) "الارتفاع / السماكة (متر)" else "Hauteur / épaisseur (m)", heightText) { heightText = it }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(if (isArabic) "عدد العناصر: ${quantity.toInt()}" else "Nombre d’éléments : ${quantity.toInt()}")
+                Text(if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+        Text(if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع/السماكة" else "Calcul : quantité × longueur × largeur × hauteur/épaisseur", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun NumberField(label: String, value: String, onValueChange: (String) -> Unit) {
+    OutlinedTextField(value = value, onValueChange = { input -> if (input.all { it.isDigit() || it == '.' || it == ',' }) onValueChange(input.replace(',', '.')) }, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 }
