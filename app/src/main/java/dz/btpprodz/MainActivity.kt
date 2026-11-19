@@ -24,13 +24,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dz.btpprodz.data.AppSettingEntity
+import dz.btpprodz.data.BtpDatabase
+import dz.btpprodz.data.CustomUnitEntity
+import dz.btpprodz.data.MaterialEntity
+import dz.btpprodz.data.MaterialPriceHistoryEntity
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -563,15 +573,28 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
 
 @Composable
 private fun SettingsScreen(isArabic: Boolean) {
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val scope = rememberCoroutineScope()
+    val units by dao.observeUnits().collectAsState(initial = emptyList())
+    val materials by dao.observeMaterials().collectAsState(initial = emptyList())
+    val history by dao.observePriceHistory().collectAsState(initial = emptyList())
+
     var tvaText by remember { mutableStateOf("19") }
     var unitName by remember { mutableStateOf("") }
     var unitSymbol by remember { mutableStateOf("") }
     var materialName by remember { mutableStateOf("") }
     var materialPrice by remember { mutableStateOf("") }
-    var customUnits by remember { mutableStateOf(listOf<Pair<String, String>>()) }
-    var priceHistory by remember { mutableStateOf(listOf<Triple<String, String, String>>()) }
-    val tva = tvaText.toDoubleOrNull() ?: 0.0
+    var materialUnit by remember { mutableStateOf("وحدة") }
+    var tvaLoaded by remember { mutableStateOf(false) }
+    val tva = tvaText.toDoubleOrNull() ?: -1.0
     val validTva = tva in 0.0..100.0
+
+    LaunchedEffect(Unit) {
+        val saved = dao.getSetting("tva_percent")
+        if (saved != null) tvaText = saved.value
+        tvaLoaded = true
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "إعدادات التطبيق" else "Paramètres de l’application", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -585,42 +608,72 @@ private fun SettingsScreen(isArabic: Boolean) {
             },
             color = if (validTva) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
         )
+        Button(onClick = { scope.launch { dao.saveSetting(AppSettingEntity("tva_percent", tvaText)) } }, enabled = validTva && tvaLoaded) {
+            Text(if (isArabic) "حفظ نسبة TVA" else "Enregistrer la TVA")
+        }
+
         Divider()
         Text(if (isArabic) "إضافة وحدة قياس" else "Ajouter une unité", fontWeight = FontWeight.SemiBold)
         OutlinedTextField(value = unitName, onValueChange = { unitName = it }, label = { Text(if (isArabic) "اسم الوحدة" else "Nom de l’unité") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         OutlinedTextField(value = unitSymbol, onValueChange = { unitSymbol = it }, label = { Text(if (isArabic) "رمز الوحدة" else "Symbole de l’unité") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         Button(onClick = {
-            if (unitName.isNotBlank() && unitSymbol.isNotBlank()) {
-                customUnits = customUnits + (unitName.trim() to unitSymbol.trim())
+            scope.launch {
+                dao.insertUnit(CustomUnitEntity(name = unitName.trim(), symbol = unitSymbol.trim()))
                 unitName = ""
                 unitSymbol = ""
             }
         }, enabled = unitName.isNotBlank() && unitSymbol.isNotBlank()) {
             Text(if (isArabic) "إضافة الوحدة" else "Ajouter l’unité")
         }
-        customUnits.forEach { Text("• ${it.first} (${it.second})") }
+        if (units.isEmpty()) Text(if (isArabic) "لا توجد وحدات مخصصة بعد." else "Aucune unité personnalisée.")
+        units.forEach { Text("• ${it.name} (${it.symbol})") }
+
         Divider()
         Text(if (isArabic) "أسعار المواد وسجل الأسعار" else "Prix des matériaux et historique", fontWeight = FontWeight.SemiBold)
         OutlinedTextField(value = materialName, onValueChange = { materialName = it }, label = { Text(if (isArabic) "اسم المادة" else "Nom du matériau") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = materialUnit, onValueChange = { materialUnit = it }, label = { Text(if (isArabic) "وحدة التسعير" else "Unité de prix") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         NumberField(if (isArabic) "السعر بالدينار الجزائري (دج)" else "Prix en dinars algériens (DA)", materialPrice) { materialPrice = it }
         Button(onClick = {
             val price = materialPrice.toDoubleOrNull()
-            if (materialName.isNotBlank() && price != null && price >= 0) {
-                val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
-                priceHistory = listOf(Triple(materialName.trim(), materialPrice, date)) + priceHistory
-                materialName = ""
-                materialPrice = ""
+            if (price != null && price >= 0 && materialName.isNotBlank() && materialUnit.isNotBlank()) {
+                scope.launch {
+                    val name = materialName.trim()
+                    val unit = materialUnit.trim()
+                    val previous = dao.findMaterial(name)
+                    dao.saveMaterial(MaterialEntity(
+                        id = previous?.id ?: 0,
+                        name = name,
+                        currentPrice = price,
+                        unit = unit,
+                        updatedAt = System.currentTimeMillis()
+                    ))
+                    val saved = dao.findMaterial(name)
+                    if (saved != null) dao.addPriceHistory(MaterialPriceHistoryEntity(
+                        materialId = saved.id,
+                        materialName = saved.name,
+                        price = price,
+                        unit = unit
+                    ))
+                    materialName = ""
+                    materialPrice = ""
+                }
             }
-        }, enabled = materialName.isNotBlank() && (materialPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
-            Text(if (isArabic) "حفظ السعر في السجل" else "Enregistrer le prix")
+        }, enabled = materialName.isNotBlank() && materialUnit.isNotBlank() && (materialPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
+            Text(if (isArabic) "حفظ / تحديث السعر" else "Enregistrer / actualiser le prix")
         }
-        if (priceHistory.isEmpty()) {
-            Text(if (isArabic) "لا توجد أسعار مسجلة بعد." else "Aucun prix enregistré.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            priceHistory.forEach { entry -> Text("• ${entry.first}: ${entry.second} DA — ${entry.third}") }
+
+        Text(if (isArabic) "المواد المسجلة والأسعار الحالية" else "Matériaux et prix actuels", fontWeight = FontWeight.SemiBold)
+        if (materials.isEmpty()) Text(if (isArabic) "لا توجد مواد مسجلة بعد." else "Aucun matériau enregistré.")
+        materials.forEach { Text("• ${it.name}: ${it.currentPrice} DA / ${it.unit}") }
+
+        Text(if (isArabic) "سجل تغيّر الأسعار" else "Historique des prix", fontWeight = FontWeight.SemiBold)
+        if (history.isEmpty()) Text(if (isArabic) "لا يوجد سجل أسعار بعد." else "Aucun historique pour le moment.")
+        history.forEach { entry ->
+            val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.ROOT).format(java.util.Date(entry.recordedAt))
+            Text("• ${entry.materialName}: ${entry.price} DA / ${entry.unit} — $date")
         }
         Text(
-            if (isArabic) "ملاحظة: الإعدادات مؤقتة داخل الشاشة حالياً؛ سنضيف التخزين الدائم وربط الأسعار بالحسابات وDevis لاحقاً." else "Remarque : paramètres temporaires pour le moment ; le stockage permanent et la liaison aux calculs et devis seront ajoutés plus tard.",
+            if (isArabic) "تُحفظ هذه البيانات محلياً على الهاتف دون الحاجة إلى الإنترنت. ربطها بالحسابات وDevis سيكون في المرحلة التالية." else "Ces données sont enregistrées localement sur le téléphone, sans Internet. Leur liaison aux calculs et aux devis viendra à l’étape suivante.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
