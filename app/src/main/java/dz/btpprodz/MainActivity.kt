@@ -121,7 +121,7 @@ private fun BtpProDzApp() {
                     if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic); LaborCostSection(section = "الأساسات", isArabic = isArabic) }
                     if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic); LaborCostSection(section = "الحفر والردم", isArabic = isArabic) }
                     if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic) }
-                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic) }
+                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") { CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic) } }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
                 } else {
                 Text(
