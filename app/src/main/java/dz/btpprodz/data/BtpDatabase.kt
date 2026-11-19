@@ -11,6 +11,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -101,6 +103,14 @@ abstract class BtpDatabase : RoomDatabase() {
     abstract fun appDataDao(): AppDataDao
 
     companion object {
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS calculation_costs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, section TEXT NOT NULL, materialName TEXT NOT NULL, quantity REAL NOT NULL, unit TEXT NOT NULL, unitPriceSnapshot REAL NOT NULL, totalCost REAL NOT NULL, recordedAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_calculation_costs_recordedAt ON calculation_costs(recordedAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_calculation_costs_section ON calculation_costs(section)")
+            }
+        }
+
         @Volatile private var INSTANCE: BtpDatabase? = null
 
         fun getInstance(context: Context): BtpDatabase =
@@ -109,7 +119,7 @@ abstract class BtpDatabase : RoomDatabase() {
                     context.applicationContext,
                     BtpDatabase::class.java,
                     "btp_pro_dz.db"
-                ).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
             }
     }
 }
