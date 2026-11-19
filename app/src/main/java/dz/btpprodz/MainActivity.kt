@@ -47,6 +47,7 @@ import dz.btpprodz.data.ProjectEntity
 import dz.btpprodz.data.DevisDocumentEntity
 import dz.btpprodz.data.DevisLineEntity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flowOf
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -858,7 +859,10 @@ private fun ProjectsScreen(isArabic: Boolean) {
     var clientName by remember { mutableStateOf("") }
     var selectedProjectId by remember { mutableStateOf<Long?>(null) }
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
-    val devisList by if (selectedProjectId != null) dao.observeDevis(selectedProjectId!!).collectAsState(initial = emptyList()) else remember { mutableStateOf(emptyList()) }
+    val devisFlow = remember(selectedProjectId) {
+        selectedProjectId?.let { dao.observeDevis(it) } ?: flowOf(emptyList())
+    }
+    val devisList by devisFlow.collectAsState(initial = emptyList())
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "المشاريع والـ Devis" else "Projets et devis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
