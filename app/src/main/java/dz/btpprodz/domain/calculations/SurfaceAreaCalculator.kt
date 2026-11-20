@@ -8,7 +8,8 @@ object SurfaceAreaCalculator {
         count: Int,
         lengthM: BigDecimal,
         heightM: BigDecimal,
-        totalOpeningsM2: BigDecimal
+        totalOpeningsM2: BigDecimal,
+        unit: LengthUnit = LengthUnit.METER
     ): BigDecimal {
         require(count > 0) { "Count must be greater than zero." }
         require(lengthM > BigDecimal.ZERO && heightM > BigDecimal.ZERO) {
@@ -17,7 +18,7 @@ object SurfaceAreaCalculator {
         require(totalOpeningsM2 >= BigDecimal.ZERO) {
             "Opening area cannot be negative."
         }
-        val gross = lengthM.multiply(heightM).multiply(BigDecimal.valueOf(count.toLong()))
+        val gross = unit.toMeters(lengthM).multiply(unit.toMeters(heightM)).multiply(BigDecimal.valueOf(count.toLong()))
         require(totalOpeningsM2 <= gross) {
             "Opening area cannot exceed gross area."
         }
