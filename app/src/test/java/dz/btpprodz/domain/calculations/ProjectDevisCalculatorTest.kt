@@ -41,4 +41,33 @@ class ProjectDevisCalculatorTest {
             )
         }
     }
+
+    @Test fun roundsEachStoredLineToTwoDecimalPlacesBeforeAggregation() {
+        val result = ProjectDevisCalculator.calculate(
+            materialLines = listOf(
+                DevisCostLine(1.0, 10.005, 10.01),
+                DevisCostLine(1.0, 10.004, 10.00)
+            ),
+            laborLines = emptyList(),
+            tvaPercent = BigDecimal.ZERO
+        )
+        assertEquals(0, result.materialsHt.compareTo(BigDecimal("20.01")))
+        assertEquals(0, result.totalTtc.compareTo(BigDecimal("20.01")))
+    }
+
+    @Test fun rejectsTvaOutsideSupportedRange() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ProjectDevisCalculator.calculate(emptyList(), emptyList(), BigDecimal("-1"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ProjectDevisCalculator.calculate(emptyList(), emptyList(), BigDecimal("101"))
+        }
+    }
+
+    @Test fun emptyCostLinesProduceZeroQuote() {
+        val result = ProjectDevisCalculator.calculate(emptyList(), emptyList(), BigDecimal("19"))
+        assertEquals(0, result.totalHt.compareTo(BigDecimal.ZERO))
+        assertEquals(0, result.totalTtc.compareTo(BigDecimal.ZERO))
+    }
+
 }
