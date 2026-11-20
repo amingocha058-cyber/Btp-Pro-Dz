@@ -45,6 +45,7 @@ import dz.btpprodz.domain.calculations.DevisTotalsCalculator
 import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
 import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
+import dz.btpprodz.domain.calculations.SurfaceAreaCalculator
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -624,7 +625,14 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     val isStairs = section == "السلالم"
     val isLabor = section == "اليد العاملة"
     val area = when {
-        isWall || isFinish -> count * length * height - openings
+        isWall || isFinish -> runCatching {
+            SurfaceAreaCalculator.netRectangularArea(
+                count = count.toInt(),
+                lengthM = BigDecimal.valueOf(length),
+                heightM = BigDecimal.valueOf(width),
+                totalOpeningsM2 = BigDecimal.valueOf(openings)
+            ).toDouble()
+        }.getOrDefault(-1.0)
         isRoof || isFloor -> count * length * width
         isStairs -> count * length * width
         else -> 0.0
