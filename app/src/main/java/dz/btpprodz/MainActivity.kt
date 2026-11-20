@@ -624,9 +624,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     val isStairs = section == "السلالم"
     val isLabor = section == "اليد العاملة"
     val area = when {
-        isWall -> count * length * height - openings
+        isWall || isFinish -> count * length * height - openings
         isRoof || isFloor -> count * length * width
-        isFinish -> count * length * height
         isStairs -> count * length * width
         else -> 0.0
     }
@@ -640,7 +639,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
         (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
         (isLabor || openings >= 0.0) &&
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
-        (!isLabor || unitPrice >= 0.0) && (!isWall || area >= 0.0)
+        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish) || area >= 0.0)
 
     val titleAr = section
     val titleFr = when(section) {
