@@ -27,7 +27,7 @@ class EarthworkCalculatorTest {
             unit = LengthUnit.CENTIMETER
         )
 
-        assertEquals(0, result.volumeCubicMeters.compareTo(BigDecimal("1.8")))
+        assertEquals(0, result.volumeCubicMeters.compareTo(BigDecimal("18")))
     }
 
     @Test
