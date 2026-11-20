@@ -33,4 +33,12 @@ class LinearElementVolumeCalculatorTest {
             LinearElementVolumeCalculator.calculate(1, BigDecimal.ONE, BigDecimal("-0.2"), BigDecimal.ONE)
         }
     }
+    @Test fun convertsMillimeterDimensionsToMeters() {
+        val result = LinearElementVolumeCalculator.calculate(
+            4, BigDecimal("300"), BigDecimal("300"), BigDecimal("3000"), LengthUnit.MILLIMETER
+        )
+        assertEquals(0, result.volumePerElementM3.compareTo(BigDecimal("0.270000000")))
+        assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("1.080000000")))
+    }
+
 }
