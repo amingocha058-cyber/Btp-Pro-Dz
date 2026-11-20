@@ -42,4 +42,15 @@ class SurfaceAreaCalculatorTest {
             )
         }
     }
+    @Test fun convertsCentimeterWallDimensionsBeforeSubtractingSquareMeterOpenings() {
+        val result = SurfaceAreaCalculator.netRectangularArea(
+            count = 2,
+            lengthM = BigDecimal("500"),
+            heightM = BigDecimal("300"),
+            totalOpeningsM2 = BigDecimal("4.5"),
+            unit = LengthUnit.CENTIMETER
+        )
+        assertEquals(0, result.compareTo(BigDecimal("25.5")))
+    }
+
 }
