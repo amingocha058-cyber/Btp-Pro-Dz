@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -911,6 +912,7 @@ private fun SettingsScreen(isArabic: Boolean) {
 
     val backupDatabase = remember { BtpDatabase.getInstance(context) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
+    var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         if (uri != null) scope.launch {
             backupMessage = runCatching {
@@ -924,16 +926,7 @@ private fun SettingsScreen(isArabic: Boolean) {
         }
     }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            backupMessage = runCatching {
-                withContext(Dispatchers.IO) {
-                    val input = context.contentResolver.openInputStream(uri) ?: error("Cannot open selected backup.")
-                    input.use { DatabaseBackupManager.restore(context, it) }
-                }
-                (context as? Activity)?.recreate()
-                if (isArabic) "تم التحقق من النسخة واسترجاع قاعدة البيانات." else "Backup validated and restored."
-            }.getOrElse { (if (isArabic) "فشل الاسترجاع: " else "Restore failed: ") + (it.message ?: "Unknown error") }
-        }
+        pendingRestoreUri = uri
     }
     val units by dao.observeUnits().collectAsState(initial = emptyList())
     val materials by dao.observeMaterials().collectAsState(initial = emptyList())
@@ -974,6 +967,32 @@ private fun SettingsScreen(isArabic: Boolean) {
             }
         }
         backupMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+        Text(if (isArabic) "تنبيه: ملف النسخة يحتوي بيانات المشاريع والأسعار والزبائن؛ احفظه في مكان آمن." else "Attention: the backup contains project, price and client data. Store it securely.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        pendingRestoreUri?.let { uri ->
+            AlertDialog(
+                onDismissRequest = { pendingRestoreUri = null },
+                title = { Text(if (isArabic) "تأكيد استرجاع النسخة" else "Confirm database restore") },
+                text = { Text(if (isArabic) "سيتم استبدال قاعدة البيانات الحالية بالنسخة المختارة. تأكد من وجود نسخة احتياطية حديثة قبل المتابعة." else "The current database will be replaced by the selected backup. Ensure you have a recent backup before continuing.") },
+                confirmButton = {
+                    Button(onClick = {
+                        pendingRestoreUri = null
+                        scope.launch {
+                            backupMessage = runCatching {
+                                withContext(Dispatchers.IO) {
+                                    val input = context.contentResolver.openInputStream(uri) ?: error("Cannot open selected backup.")
+                                    input.use { DatabaseBackupManager.restore(context, it) }
+                                }
+                                (context as? Activity)?.recreate()
+                                if (isArabic) "تم التحقق من النسخة واسترجاع قاعدة البيانات." else "Backup validated and restored."
+                            }.getOrElse { (if (isArabic) "فشل الاسترجاع: " else "Restore failed: ") + (it.message ?: "Unknown error") }
+                        }
+                    }) { Text(if (isArabic) "استرجاع" else "Restore") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { pendingRestoreUri = null }) { Text(if (isArabic) "إلغاء" else "Cancel") }
+                }
+            )
+        }
         Text(if (isArabic) "الضريبة على القيمة المضافة TVA (%)" else "TVA (%)", fontWeight = FontWeight.SemiBold)
         NumberField(if (isArabic) "نسبة TVA" else "Taux de TVA", tvaText) { tvaText = it }
         Text(
