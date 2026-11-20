@@ -114,4 +114,40 @@ class ConcreteCalculatorsTest {
             )
         }
     }
+    @Test
+    fun concreteVolumeRejectsNonFiniteAndOverflowingDimensions() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteVolumeCalculator.calculate(
+                ConcreteVolumeInput(Double.POSITIVE_INFINITY, 1.0, 1.0)
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteVolumeCalculator.calculate(
+                ConcreteVolumeInput(Double.MAX_VALUE, 2.0, 1.0)
+            )
+        }
+    }
+
+    @Test
+    fun concreteMaterialRejectsWasteAboveOneHundredPercent() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteMaterialCalculator.calculate(
+                ConcreteMaterialInput(
+                    1.0,
+                    ConcreteDosage(300.0, 1.0, 1.0),
+                    wastePercent = 100.01
+                )
+            )
+        }
+    }
+
+    @Test
+    fun concreteMaterialRejectsAllZeroDosage() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteMaterialCalculator.calculate(
+                ConcreteMaterialInput(1.0, ConcreteDosage(0.0, 0.0, 0.0))
+            )
+        }
+    }
+
 }
