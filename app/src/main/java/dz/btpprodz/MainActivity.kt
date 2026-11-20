@@ -564,9 +564,14 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     val volume = if (isRoof) area * height else 0.0
     val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
     val laborTotal = if (isLabor && count >= 0 && unitPrice >= 0) count * unitPrice else 0.0
-    val valid = count > 0 && length > 0 && width > 0 && height > 0 &&
-        openings >= 0 && (!isFloor || (tileLength > 0 && tileWidth > 0)) &&
-        (!isLabor || unitPrice >= 0) && (!isWall || area >= 0)
+    val inputsFinite = listOf(count, length, width, height, unitPrice, openings, tileLength, tileWidth).all { it.isFinite() }
+    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && laborTotal.isFinite()
+    val valid = inputsFinite && outputsFinite && count > 0.0 &&
+        (isLabor || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
+        (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
+        (isLabor || openings >= 0.0) &&
+        (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
+        (!isLabor || unitPrice >= 0.0) && (!isWall || area >= 0.0)
 
     val titleAr = section
     val titleFr = when(section) {
@@ -606,18 +611,18 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
                 Text(if (isArabic) "النتائج التقديرية" else "Résultats estimatifs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 when {
                     isLabor -> {
-                        Text(if (isArabic) "إجمالي وحدات العمل: ${"%.2f".format(count)}" else "Total des unités : ${"%.2f".format(count)}")
-                        Text(if (isArabic) "التكلفة الإجمالية: ${"%.2f".format(laborTotal)} دج" else "Coût total : ${"%.2f".format(laborTotal)} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(if (isArabic) "إجمالي وحدات العمل: ${if (valid) "%.2f".format(count) else "—"}" else "Total des unités : ${if (valid) "%.2f".format(count) else "—"}")
+                        Text(if (isArabic) "التكلفة الإجمالية: ${if (valid) "%.2f".format(laborTotal) else "—"} دج" else "Coût total : ${if (valid) "%.2f".format(laborTotal) else "—"} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
                     isRoof -> {
-                        Text(if (isArabic) "المساحة: ${"%.3f".format(area)} م²" else "Surface : ${"%.3f".format(area)} m²")
-                        Text(if (isArabic) "حجم الخرسانة: ${"%.3f".format(volume)} م³" else "Volume de béton : ${"%.3f".format(volume)} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(if (isArabic) "المساحة: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface : ${if (valid) "%.3f".format(area) else "—"} m²")
+                        Text(if (isArabic) "حجم الخرسانة: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume de béton : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
                     isFloor -> {
-                        Text(if (isArabic) "المساحة الإجمالية: ${"%.3f".format(area)} م²" else "Surface totale : ${"%.3f".format(area)} m²")
-                        Text(if (isArabic) "عدد البلاطات النظري: ${"%.0f".format(kotlin.math.ceil(tileCount))}" else "Nombre théorique de carreaux : ${"%.0f".format(kotlin.math.ceil(tileCount))}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(if (isArabic) "المساحة الإجمالية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface totale : ${if (valid) "%.3f".format(area) else "—"} m²")
+                        Text(if (isArabic) "عدد البلاطات النظري: ${if (valid) "%.0f".format(kotlin.math.ceil(tileCount)) else "—"}" else "Nombre théorique de carreaux : ${if (valid) "%.0f".format(kotlin.math.ceil(tileCount)) else "—"}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
-                    else -> Text(if (isArabic) "المساحة الصافية: ${"%.3f".format(area)} م²" else "Surface nette : ${"%.3f".format(area)} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    else -> Text(if (isArabic) "المساحة الصافية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface nette : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 if (!valid) Text(
                     if (isArabic) "راجع المدخلات: يجب أن تكون الأبعاد والأعداد موجبة، وألا تتجاوز الفتحات مساحة الجدار." else "Vérifiez les données : valeurs positives et ouvertures inférieures à la surface du mur.",
