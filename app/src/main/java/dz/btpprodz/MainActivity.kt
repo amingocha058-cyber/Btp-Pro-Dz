@@ -908,6 +908,33 @@ private fun SettingsScreen(isArabic: Boolean) {
     val context = LocalContext.current
     val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
     val scope = rememberCoroutineScope()
+
+    val backupDatabase = remember { BtpDatabase.getInstance(context) }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        if (uri != null) scope.launch {
+            backupMessage = runCatching {
+                withContext(Dispatchers.IO) {
+                    val output = context.contentResolver.openOutputStream(uri) ?: error("Cannot open backup destination.")
+                    output.use { DatabaseBackupManager.backup(context, backupDatabase, it) }
+                }
+                (context as? Activity)?.recreate()
+                if (isArabic) "تم إنشاء النسخة الاحتياطية بنجاح." else "Backup created successfully."
+            }.getOrElse { (if (isArabic) "فشل النسخ الاحتياطي: " else "Backup failed: ") + (it.message ?: "Unknown error") }
+        }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            backupMessage = runCatching {
+                withContext(Dispatchers.IO) {
+                    val input = context.contentResolver.openInputStream(uri) ?: error("Cannot open selected backup.")
+                    input.use { DatabaseBackupManager.restore(context, it) }
+                }
+                (context as? Activity)?.recreate()
+                if (isArabic) "تم التحقق من النسخة واسترجاع قاعدة البيانات." else "Backup validated and restored."
+            }.getOrElse { (if (isArabic) "فشل الاسترجاع: " else "Restore failed: ") + (it.message ?: "Unknown error") }
+        }
+    }
     val units by dao.observeUnits().collectAsState(initial = emptyList())
     val materials by dao.observeMaterials().collectAsState(initial = emptyList())
     val history by dao.observePriceHistory().collectAsState(initial = emptyList())
@@ -934,6 +961,19 @@ private fun SettingsScreen(isArabic: Boolean) {
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "إعدادات التطبيق" else "Paramètres de l’application", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+        Divider()
+        Text(if (isArabic) "النسخ الاحتياطي والاسترجاع" else "Sauvegarde et restauration", fontWeight = FontWeight.SemiBold)
+        Text(if (isArabic) "احفظ نسخة من قاعدة بيانات مشاريعك وأسعارك ووثائق Devis في ملف تختار مكانه. الاسترجاع يستبدل قاعدة البيانات الحالية بعد فحص سلامة الملف." else "Exportez la base locale (projets, tarifs et devis). La restauration remplace la base actuelle après vérification d’intégrité.")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { backupLauncher.launch("BtpProDz_Backup.db") }) {
+                Text(if (isArabic) "إنشاء نسخة" else "Sauvegarder")
+            }
+            OutlinedButton(onClick = { restoreLauncher.launch(arrayOf("*/*")) }) {
+                Text(if (isArabic) "استرجاع نسخة" else "Restaurer")
+            }
+        }
+        backupMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         Text(if (isArabic) "الضريبة على القيمة المضافة TVA (%)" else "TVA (%)", fontWeight = FontWeight.SemiBold)
         NumberField(if (isArabic) "نسبة TVA" else "Taux de TVA", tvaText) { tvaText = it }
         Text(
