@@ -337,7 +337,7 @@ private fun FoundationCalculator(isArabic: Boolean) {
                 Text(if (isArabic) "عدد العناصر: ${if (valid) quantity.toInt().toString() else "—"}" else "Quantité : ${if (valid) quantity.toInt().toString() else "—"}")
                 Text(if (isArabic) "حجم العنصر الواحد: ${if (valid) "%.3f".format(unitVolume) else "—"} م³" else "Volume unitaire : ${if (valid) "%.3f".format(unitVolume) else "—"} m³")
                 Text(
-                    if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
+                    if (isArabic) "الحجم الإجمالي: ${if (valid) "%.3f".format(totalVolume) else "—"} م³" else "Volume total : ${if (valid) "%.3f".format(totalVolume) else "—"} m³",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -423,14 +423,14 @@ private fun EarthworksCalculator(isArabic: Boolean) {
             ) {
                 Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(if (isArabic) "العملية: ${if (operation == 0) "حفر" else "ردم"}" else "Opération : ${if (operation == 0) "Déblai" else "Remblai"}")
-                Text(if (isArabic) "عدد المناطق: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre de zones : ${if (quantity >= 0) quantity.toInt() else 0}")
+                Text(if (isArabic) "عدد المناطق: ${if (valid) quantity.toInt().toString() else "—"}" else "Nombre de zones : ${if (valid) quantity.toInt().toString() else "—"}")
                 Text(if (valid) {
                     if (isArabic) "الحجم الصافي للمنطقة الواحدة: ${"%.3f".format(unitVolume)} م³" else "Volume net par zone : ${"%.3f".format(unitVolume)} m³"
                 } else {
                     if (isArabic) "حجم المنطقة الواحدة: —" else "Volume par zone : —"
                 })
                 Text(
-                    if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
+                    if (isArabic) "الحجم الإجمالي: ${if (valid) "%.3f".format(totalVolume) else "—"} م³" else "Volume total : ${if (valid) "%.3f".format(totalVolume) else "—"} m³",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
