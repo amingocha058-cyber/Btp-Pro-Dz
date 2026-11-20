@@ -59,4 +59,12 @@ class FoundationVolumeCalculatorTest {
         assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("0.30")))
     }
 
+    @Test fun convertsCentimeterDimensionsToMeters() {
+        val result = FoundationVolumeCalculator.isolatedFootings(
+            4, BigDecimal("120"), BigDecimal("120"), BigDecimal("40"), LengthUnit.CENTIMETER
+        )
+        assertEquals(0, result.volumePerElementM3.compareTo(BigDecimal("0.576")))
+        assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("2.304")))
+    }
+
 }
