@@ -69,4 +69,49 @@ class ConcreteCalculatorsTest {
             )
         }
     }
+
+    @Test
+    fun concreteMaterialRejectsOverflowingAppliedVolume() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteMaterialCalculator.calculate(
+                ConcreteMaterialInput(
+                    concreteVolumeM3 = Double.MAX_VALUE,
+                    dosage = ConcreteDosage(
+                        cementKgPerM3 = 1.0,
+                        sandM3PerM3 = 1.0,
+                        gravelM3PerM3 = 1.0
+                    ),
+                    wastePercent = 100.0
+                )
+            )
+        }
+    }
+
+    @Test
+    fun concreteMaterialRejectsOverflowingMaterialQuantity() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConcreteMaterialCalculator.calculate(
+                ConcreteMaterialInput(
+                    concreteVolumeM3 = Double.MAX_VALUE,
+                    dosage = ConcreteDosage(
+                        cementKgPerM3 = 2.0,
+                        sandM3PerM3 = 0.0,
+                        gravelM3PerM3 = 0.0
+                    )
+                )
+            )
+        }
+    }
+
+    @Test
+    fun mortarMaterialRejectsOverflowingMaterialQuantity() {
+        assertThrows(IllegalArgumentException::class.java) {
+            MortarMaterialCalculator.calculate(
+                MortarMaterialInput(
+                    mortarVolumeM3 = Double.MAX_VALUE,
+                    dosage = MortarDosage(cementKgPerM3 = 2.0, sandM3PerM3 = 0.0)
+                )
+            )
+        }
+    }
 }
