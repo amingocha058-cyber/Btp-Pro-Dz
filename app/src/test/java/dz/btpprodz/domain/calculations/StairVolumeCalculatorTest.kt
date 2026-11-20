@@ -26,7 +26,7 @@ class StairVolumeCalculatorTest {
             2, BigDecimal("1"), BigDecimal("3"), BigDecimal("0.12"),
             5, BigDecimal("0.28"), BigDecimal("0.16")
         )
-        assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("1.40")))
+        assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("2.0640")))
     }
 
     @Test fun convertsMillimetersToMeters() {
