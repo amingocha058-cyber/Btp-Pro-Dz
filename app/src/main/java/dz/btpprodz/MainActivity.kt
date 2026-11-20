@@ -36,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dz.btpprodz.domain.calculations.EarthworkCalculator
+import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
 import dz.btpprodz.data.CustomUnitEntity
@@ -363,14 +365,30 @@ private fun EarthworksCalculator(isArabic: Boolean) {
     var lengthText by remember { mutableStateOf("10") }
     var widthText by remember { mutableStateOf("5") }
     var depthText by remember { mutableStateOf("1") }
+    var occupiedVolumeText by remember { mutableStateOf("0") }
 
     val quantity = quantityText.toDoubleOrNull() ?: 0.0
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val depth = depthText.toDoubleOrNull() ?: 0.0
-    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && depth > 0
-    val unitVolume = length * width * depth
-    val totalVolume = if (valid) quantity * unitVolume else 0.0
+    val occupiedVolume = occupiedVolumeText.toBigDecimalOrNull()
+    val excavation = runCatching {
+        EarthworkCalculator.rectangularExcavation(
+            length.toBigDecimal(), width.toBigDecimal(), depth.toBigDecimal()
+        ).volumeCubicMeters
+    }.getOrNull()
+    val backfillPerZone = if (operation == 1 && excavation != null && occupiedVolume != null) {
+        runCatching { EarthworkCalculator.backfill(excavation, occupiedVolume).netVolumeCubicMeters }.getOrNull()
+    } else null
+    val unitVolume = when (operation) {
+        0 -> excavation?.toDouble() ?: 0.0
+        else -> backfillPerZone?.toDouble() ?: 0.0
+    }
+    val totalVolume = quantity * unitVolume
+    val valid = quantity.isFinite() && quantity > 0.0 && quantity % 1.0 == 0.0 &&
+        quantity <= Int.MAX_VALUE && length.isFinite() && width.isFinite() && depth.isFinite() &&
+        length > 0.0 && width > 0.0 && depth > 0.0 && unitVolume.isFinite() &&
+        totalVolume.isFinite() && (operation == 0 || backfillPerZone != null)
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -394,6 +412,9 @@ private fun EarthworksCalculator(isArabic: Boolean) {
         NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
         NumberField(if (isArabic) "العرض (م)" else "Largeur (m)", widthText) { widthText = it }
         NumberField(if (isArabic) "العمق أو الارتفاع (م)" else "Profondeur ou hauteur (m)", depthText) { depthText = it }
+        if (operation == 1) {
+            NumberField(if (isArabic) "حجم المنشأ داخل الحفر لكل منطقة (م³)" else "Volume de structure occupé par zone (m³)", occupiedVolumeText) { occupiedVolumeText = it }
+        }
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Column(
@@ -403,21 +424,29 @@ private fun EarthworksCalculator(isArabic: Boolean) {
                 Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(if (isArabic) "العملية: ${if (operation == 0) "حفر" else "ردم"}" else "Opération : ${if (operation == 0) "Déblai" else "Remblai"}")
                 Text(if (isArabic) "عدد المناطق: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre de zones : ${if (quantity >= 0) quantity.toInt() else 0}")
-                Text(if (isArabic) "حجم المنطقة الواحدة: ${"%.3f".format(unitVolume)} م³" else "Volume par zone : ${"%.3f".format(unitVolume)} m³")
+                Text(if (valid) {
+                    if (isArabic) "الحجم الصافي للمنطقة الواحدة: ${"%.3f".format(unitVolume)} م³" else "Volume net par zone : ${"%.3f".format(unitVolume)} m³"
+                } else {
+                    if (isArabic) "حجم المنطقة الواحدة: —" else "Volume par zone : —"
+                })
                 Text(
                     if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 if (!valid) Text(
-                    if (isArabic) "أدخل عدداً صحيحاً وأبعاداً أكبر من الصفر." else "Saisissez un nombre entier et des dimensions positives.",
+                    if (operation == 1) {
+                        if (isArabic) "تحقق من الأبعاد والعدد، وأن حجم المنشأ بين صفر وحجم الحفر." else "Vérifiez les dimensions, la quantité et un volume occupé compris entre zéro et le volume excavé."
+                    } else {
+                        if (isArabic) "أدخل عدداً صحيحاً وأبعاداً أكبر من الصفر." else "Saisissez un nombre entier et des dimensions positives."
+                    },
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
         Text(
-            if (isArabic) "الحساب الهندسي المبسط: العدد × الطول × العرض × العمق/الارتفاع. لا يشمل معامل انتفاش التربة أو الدمك." else "Calcul géométrique simple : nombre × longueur × largeur × profondeur/hauteur. Hors foisonnement et compactage.",
+            if (isArabic) "الحفر = الطول × العرض × العمق. الردم الصافي = حجم الحفر − حجم المنشأ المشغول لكل منطقة. لا يشمل الحساب انتفاش التربة أو الدمك." else "Déblai = longueur × largeur × profondeur. Remblai net = volume excavé − volume occupé par la structure. Hors foisonnement et compactage.",
             style = MaterialTheme.typography.bodySmall
         )
     }
