@@ -35,4 +35,28 @@ class FoundationVolumeCalculatorTest {
             FoundationVolumeCalculator.stripFootingRuns(1, BigDecimal("5"), BigDecimal("-0.3"), BigDecimal("0.4"))
         }
     }
+
+    @Test fun rejectsNegativeCount() {
+        assertThrows(IllegalArgumentException::class.java) {
+            FoundationVolumeCalculator.isolatedFootings(-1, BigDecimal("1"), BigDecimal("1"), BigDecimal("1"))
+        }
+    }
+
+    @Test fun rejectsZeroLengthAndZeroDepth() {
+        assertThrows(IllegalArgumentException::class.java) {
+            FoundationVolumeCalculator.isolatedFootings(1, BigDecimal.ZERO, BigDecimal("1"), BigDecimal("1"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            FoundationVolumeCalculator.gradeBeamRuns(1, BigDecimal("1"), BigDecimal("1"), BigDecimal.ZERO)
+        }
+    }
+
+    @Test fun decimalScaleDoesNotChangeGeometricResult() {
+        val result = FoundationVolumeCalculator.isolatedFootings(
+            2, BigDecimal("1.200"), BigDecimal("0.5000"), BigDecimal("0.250")
+        )
+        assertEquals(0, result.volumePerElementM3.compareTo(BigDecimal("0.15")))
+        assertEquals(0, result.totalVolumeM3.compareTo(BigDecimal("0.30")))
+    }
+
 }
