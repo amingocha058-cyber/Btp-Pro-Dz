@@ -3,6 +3,8 @@ package dz.btpprodz
 import android.os.Bundle
 import androidx.room.withTransaction
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +51,8 @@ import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
 import dz.btpprodz.domain.calculations.SurfaceAreaCalculator
 import dz.btpprodz.domain.calculations.SlabVolumeCalculator
 import dz.btpprodz.domain.calculations.StairVolumeCalculator
+import dz.btpprodz.export.ProjectReportExporter
+import dz.btpprodz.export.ProjectReportRow
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -62,6 +66,8 @@ import dz.btpprodz.data.ProjectEntity
 import dz.btpprodz.data.DevisDocumentEntity
 import dz.btpprodz.data.DevisLineEntity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.flowOf
 
 class MainActivity : ComponentActivity() {
@@ -1047,6 +1053,35 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     val devisList by devisFlow.collectAsState(initial = emptyList())
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
+
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
+    val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" } ?: "Btp Pro Dz"
+    val reportRows = remember(selectedLines, selectedDocument) {
+        selectedLines.map { line -> ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total) }
+    }
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) scope.launch {
+            exportMessage = runCatching {
+                withContext(Dispatchers.IO) {
+                    val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open PDF destination.")
+                    stream.use { ProjectReportExporter.writePdf(reportTitle, reportRows, it) }
+                }
+                if (isArabic) "تم حفظ PDF بنجاح." else "PDF export saved."
+            }.getOrElse { (if (isArabic) "فشل تصدير PDF: " else "PDF export failed: ") + (it.message ?: "Unknown error") }
+        }
+    }
+    val excelLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { uri ->
+        if (uri != null) scope.launch {
+            exportMessage = runCatching {
+                withContext(Dispatchers.IO) {
+                    val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open Excel destination.")
+                    stream.use { ProjectReportExporter.writeExcel(reportTitle, reportRows, it) }
+                }
+                if (isArabic) "تم حفظ Excel بنجاح." else "Excel export saved."
+            }.getOrElse { (if (isArabic) "فشل تصدير Excel: " else "Excel export failed: ") + (it.message ?: "Unknown error") }
+        }
+    }
     val selectedLinesFlow = remember(selectedDevisId) {
         selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
     }
@@ -1156,6 +1191,16 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             if (selectedDevisId != null) {
                 Divider()
                 Text(if (isArabic) "تفاصيل وثيقة Devis" else "Détail du devis", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { pdfLauncher.launch("BtpProDz_Devis_${selectedDevisId}.pdf") }, enabled = selectedLines.isNotEmpty()) {
+                        Text(if (isArabic) "تصدير PDF" else "Exporter PDF")
+                    }
+                    OutlinedButton(onClick = { excelLauncher.launch("BtpProDz_Devis_${selectedDevisId}.xlsx") }, enabled = selectedLines.isNotEmpty()) {
+                        Text(if (isArabic) "تصدير Excel" else "Exporter Excel")
+                    }
+                }
+                exportMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 if (selectedLines.isEmpty()) Text(if (isArabic) "لا توجد بنود محفوظة في هذه الوثيقة." else "Aucune ligne enregistrée dans ce devis.")
                 selectedLines.forEach { line ->
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
