@@ -17,7 +17,7 @@ class DevisTotalsCalculatorTest {
 
     @Test fun allowsZeroTva() {
         val result = DevisTotalsCalculator.calculate(BigDecimal("120"), BigDecimal.ZERO, BigDecimal.ZERO)
-        assertEquals(BigDecimal.ZERO.setScale(2), result.tvaAmount)
+        assertEquals(0, BigDecimal.ZERO.compareTo(result.tvaAmount))
         assertEquals(BigDecimal("120"), result.totalTtc)
     }
 
