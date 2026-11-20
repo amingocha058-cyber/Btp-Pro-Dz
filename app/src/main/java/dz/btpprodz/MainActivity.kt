@@ -308,10 +308,10 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
 
     val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
     val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val length = lengthText.toDoubleOrNull() ?: 0.0
-    val width = widthText.toDoubleOrNull() ?: 0.0
-    val height = heightText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
     val dimensionsValid = length.isFinite() && length > 0.0 &&
@@ -329,10 +329,10 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
     val valid = volumeResult != null
     val perElementVolume = volumeResult?.volumePerUnitM3 ?: 0.0
     val totalVolume = volumeResult?.totalVolumeM3 ?: 0.0
-    val cementDosage = cementDosageText.toDoubleOrNull()
-    val sandDosage = sandDosageText.toDoubleOrNull()
-    val gravelDosage = gravelDosageText.toDoubleOrNull()
-    val waste = wasteText.toDoubleOrNull()
+    val cementDosage = cementDosageText.replace(',', '.').toDoubleOrNull()
+    val sandDosage = sandDosageText.replace(',', '.').toDoubleOrNull()
+    val gravelDosage = gravelDosageText.replace(',', '.').toDoubleOrNull()
+    val waste = wasteText.replace(',', '.').toDoubleOrNull()
     val materialResult = if (valid && cementDosage != null && sandDosage != null &&
         gravelDosage != null && waste != null) runCatching {
         ConcreteMaterialCalculator.calculate(
@@ -365,14 +365,7 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
         NumberField(dimensionLabels[1], widthText) { widthText = it }
         NumberField(dimensionLabels[2], heightText) { heightText = it }
 
-        Text(if (isArabic) "تقدير مواد الخرسانة (اختياري)" else "Estimation des matériaux (facultatif)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(if (isArabic) "أدخل جرعة المشروع لكل 1 م³ كما حددها المهندس أو مواصفات المشروع. لا توجد خلطة افتراضية." else "Saisissez le dosage du projet par 1 m³ selon les spécifications. Aucun dosage par défaut.")
-        NumberField(if (isArabic) "الإسمنت (كغ / م³)" else "Ciment (kg / m³)", cementDosageText) { cementDosageText = it }
-        NumberField(if (isArabic) "الرمل (م³ / م³)" else "Sable (m³ / m³)", sandDosageText) { sandDosageText = it }
-        NumberField(if (isArabic) "الحصى (م³ / م³)" else "Gravier (m³ / m³)", gravelDosageText) { gravelDosageText = it }
-        NumberField(if (isArabic) "نسبة الهدر (%)" else "Pertes (%)", wasteText) { wasteText = it }
-        if (materialResult != null) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(if (isArabic) "تقدير المواد حسب الجرعات المدخلة" else "Matériaux selon le dosage saisi", fontWeight = FontWeight.Bold)
                     Text(if (isArabic) "الإسمنت: %.1f كغ".format(materialResult.cementKg) else "Ciment : %.1f kg".format(materialResult.cementKg))
@@ -394,7 +387,15 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
                 if (!valid) Text(if (isArabic) "أدخل أعداداً وأبعاداً أكبر من الصفر لعرض نتيجة صحيحة." else "Saisissez des quantités et dimensions supérieures à zéro.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
-        CalculatedQuantityCostEntry("الخرسانة", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
+
+        Text(if (isArabic) "تقدير مواد الخرسانة (اختياري)" else "Estimation des matériaux (facultatif)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "أدخل جرعة المشروع لكل 1 م³ كما حددها المهندس أو مواصفات المشروع. لا توجد خلطة افتراضية." else "Saisissez le dosage du projet par 1 m³ selon les spécifications. Aucun dosage par défaut.")
+        NumberField(if (isArabic) "الإسمنت (كغ / م³)" else "Ciment (kg / m³)", cementDosageText) { cementDosageText = it }
+        NumberField(if (isArabic) "الرمل (م³ / م³)" else "Sable (m³ / m³)", sandDosageText) { sandDosageText = it }
+        NumberField(if (isArabic) "الحصى (م³ / م³)" else "Gravier (m³ / m³)", gravelDosageText) { gravelDosageText = it }
+        NumberField(if (isArabic) "نسبة الهدر (%)" else "Pertes (%)", wasteText) { wasteText = it }
+        if (materialResult != null) {
+            CalculatedQuantityCostEntry("الخرسانة", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
     }
 }
@@ -408,9 +409,9 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
     var widthText by remember { mutableStateOf("1.20") }
     var depthText by remember { mutableStateOf("0.40") }
 
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val length = lengthText.toDoubleOrNull() ?: 0.0
-    val width = widthText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val depth = depthText.toDoubleOrNull() ?: 0.0
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
@@ -499,9 +500,9 @@ private fun EarthworksCalculator(isArabic: Boolean, projectId: Long?) {
     var depthText by remember { mutableStateOf("1") }
     var occupiedVolumeText by remember { mutableStateOf("0") }
 
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val length = lengthText.toDoubleOrNull() ?: 0.0
-    val width = widthText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val depth = depthText.toDoubleOrNull() ?: 0.0
     val occupiedVolume = occupiedVolumeText.toBigDecimalOrNull()
     val excavation = runCatching {
@@ -594,10 +595,10 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
     var widthText by remember { mutableStateOf("0.25") }
     var heightText by remember { mutableStateOf("0.40") }
 
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val length = lengthText.toDoubleOrNull() ?: 0.0
-    val width = widthText.toDoubleOrNull() ?: 0.0
-    val height = heightText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
     val dimensionsValid = length.isFinite() && length > 0.0 &&
@@ -683,9 +684,9 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     var stairRiserText by remember(section) { mutableStateOf("0.17") }
 
     val count = countText.toDoubleOrNull() ?: 0.0
-    val length = lengthText.toDoubleOrNull() ?: 0.0
-    val width = widthText.toDoubleOrNull() ?: 0.0
-    val height = heightText.toDoubleOrNull() ?: 0.0
+    val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val unitPrice = unitPriceText.toDoubleOrNull() ?: 0.0
     val openings = openingAreaText.toDoubleOrNull() ?: 0.0
     val tileLength = tileLengthText.toDoubleOrNull() ?: 0.0
@@ -843,7 +844,7 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
     var quantityText by remember(section) { mutableStateOf("1") }
 
     val selectedMaterial = materials.firstOrNull { it.id == selectedMaterialId }
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val estimatedCostCandidate = quantity * (selectedMaterial?.currentPrice ?: 0.0)
     val valid = selectedMaterial != null && quantity.isFinite() && quantity > 0.0 &&
         selectedMaterial.currentPrice.isFinite() && selectedMaterial.currentPrice >= 0.0 &&
@@ -943,7 +944,7 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
     var selectedId by remember(section) { mutableStateOf<Long?>(null) }
     var quantityText by remember(section) { mutableStateOf("1") }
     val rate = rates.firstOrNull { it.id == selectedId }
-    val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val calculatedTotal = quantity * (rate?.unitPrice ?: 0.0)
     val validLaborEntry = rate != null && quantity.isFinite() && quantity > 0.0 &&
         rate.unitPrice.isFinite() && rate.unitPrice >= 0.0 && calculatedTotal.isFinite() &&
