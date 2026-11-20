@@ -231,9 +231,15 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val height = heightText.toDoubleOrNull() ?: 0.0
-    val valid = quantity > 0 && length > 0 && width > 0 && height > 0
-    val totalVolume = if (valid) quantity * length * width * height else 0.0
-    val perElementVolume = if (length > 0 && width > 0 && height > 0) length * width * height else 0.0
+    val perElementVolume = length * width * height
+    val calculatedTotalVolume = quantity * perElementVolume
+    val valid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
+        length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 &&
+        height.isFinite() && height > 0.0 &&
+        perElementVolume.isFinite() && calculatedTotalVolume.isFinite()
+    val totalVolume = if (valid) calculatedTotalVolume else 0.0
 
     val dimensionLabels = when (elementType) {
         0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
@@ -282,9 +288,15 @@ private fun FoundationCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val depth = depthText.toDoubleOrNull() ?: 0.0
-    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && depth > 0
     val unitVolume = length * width * depth
-    val totalVolume = if (valid) quantity * unitVolume else 0.0
+    val calculatedTotalVolume = quantity * unitVolume
+    val valid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
+        length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 &&
+        depth.isFinite() && depth > 0.0 &&
+        unitVolume.isFinite() && calculatedTotalVolume.isFinite()
+    val totalVolume = if (valid) calculatedTotalVolume else 0.0
     val typesAr = listOf("قواعد منفردة", "قواعد شريطية", "سملات / ميدات")
     val typesFr = listOf("Semelles isolées", "Semelles filantes", "Longrines")
 
@@ -424,9 +436,15 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val height = heightText.toDoubleOrNull() ?: 0.0
-    val valid = quantity > 0 && quantity % 1.0 == 0.0 && length > 0 && width > 0 && height > 0
     val unitVolume = length * width * height
-    val totalVolume = if (valid) quantity * unitVolume else 0.0
+    val calculatedTotalVolume = quantity * unitVolume
+    val valid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
+        length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 &&
+        height.isFinite() && height > 0.0 &&
+        unitVolume.isFinite() && calculatedTotalVolume.isFinite()
+    val totalVolume = if (valid) calculatedTotalVolume else 0.0
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
