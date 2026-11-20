@@ -32,4 +32,26 @@ class DevisTotalsCalculatorTest {
             DevisTotalsCalculator.calculate(BigDecimal("-1"), BigDecimal.ZERO, BigDecimal("19"))
         }
     }
+    @Test fun roundsHalfUpAtCentimeBoundary() {
+        val result = DevisTotalsCalculator.calculate(
+            BigDecimal("0.03"), BigDecimal.ZERO, BigDecimal("19")
+        )
+        assertEquals(BigDecimal("0.01"), result.tvaAmount)
+        assertEquals(BigDecimal("0.04"), result.totalTtc)
+    }
+
+    @Test fun acceptsOneHundredPercentTva() {
+        val result = DevisTotalsCalculator.calculate(
+            BigDecimal("250.00"), BigDecimal.ZERO, BigDecimal("100")
+        )
+        assertEquals(BigDecimal("250.00"), result.tvaAmount)
+        assertEquals(BigDecimal("500.00"), result.totalTtc)
+    }
+
+    @Test fun rejectsNegativeTva() {
+        assertThrows(IllegalArgumentException::class.java) {
+            DevisTotalsCalculator.calculate(BigDecimal("100"), BigDecimal.ZERO, BigDecimal("-1"))
+        }
+    }
+
 }
