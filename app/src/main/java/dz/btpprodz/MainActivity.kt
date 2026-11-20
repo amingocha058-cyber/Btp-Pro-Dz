@@ -1101,8 +1101,17 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
     val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" } ?: "Btp Pro Dz"
-    val reportRows = remember(selectedLines, selectedDocument) {
-        selectedLines.map { line -> ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total) }
+    val reportRows = remember(selectedLines, selectedDocument, isArabic) {
+        buildList {
+            selectedLines.forEach { line ->
+                add(ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total))
+            }
+            selectedDocument?.let { document ->
+                add(ProjectReportRow(if (isArabic) "المجموع HT" else "Total HT", 1.0, "DA", document.totalHt, document.totalHt))
+                add(ProjectReportRow(if (isArabic) "TVA ${document.tvaPercent}%" else "TVA ${document.tvaPercent}%", 1.0, "DA", document.tvaAmount, document.tvaAmount))
+                add(ProjectReportRow(if (isArabic) "المجموع TTC" else "Total TTC", 1.0, "DA", document.totalTtc, document.totalTtc))
+            }
+        }
     }
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) scope.launch {
