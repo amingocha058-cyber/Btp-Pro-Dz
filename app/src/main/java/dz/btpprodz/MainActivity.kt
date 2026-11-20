@@ -41,7 +41,6 @@ import dz.btpprodz.calculations.concrete.ConcreteDosage
 import dz.btpprodz.calculations.concrete.ConcreteMaterialInput
 import dz.btpprodz.calculations.concrete.ConcreteVolumeCalculator
 import dz.btpprodz.calculations.concrete.ConcreteVolumeInput
-import dz.btpprodz.domain.calculations.DevisTotalsCalculator
 import dz.btpprodz.domain.calculations.DevisCostLine
 import dz.btpprodz.domain.calculations.ProjectDevisCalculator
 import dz.btpprodz.domain.calculations.EarthworkCalculator
@@ -606,8 +605,8 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
 private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     var countText by remember(section) { mutableStateOf("1") }
     var lengthText by remember(section) { mutableStateOf("5") }
-    var widthText by remember(section) { mutableStateOf("3") }
-    var heightText by remember(section) { mutableStateOf("3") }
+    var widthText by remember(section) { mutableStateOf(if (section == "السلالم") "1.2" else "3") }
+    var heightText by remember(section) { mutableStateOf(if (section == "السلالم" || section == "السقوف والبلاطات") "0.15" else "3") }
     var unitPriceText by remember(section) { mutableStateOf("0") }
     var openingAreaText by remember(section) { mutableStateOf("0") }
     var tileLengthText by remember(section) { mutableStateOf("0.60") }
