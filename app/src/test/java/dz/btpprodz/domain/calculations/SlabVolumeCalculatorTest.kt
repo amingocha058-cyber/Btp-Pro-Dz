@@ -39,4 +39,25 @@ class SlabVolumeCalculatorTest {
             SlabVolumeCalculator.calculate(1, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO)
         }
     }
+
+    @Test fun convertsCentimetersAndMetersToSameVolume() {
+        val meters = SlabVolumeCalculator.calculate(
+            1, BigDecimal("5"), BigDecimal("4"), BigDecimal("0.15"), LengthUnit.METER
+        )
+        val centimeters = SlabVolumeCalculator.calculate(
+            1, BigDecimal("500"), BigDecimal("400"), BigDecimal("15"), LengthUnit.CENTIMETER
+        )
+        assertEquals(0, meters.compareTo(centimeters))
+        assertEquals(0, centimeters.compareTo(BigDecimal("3.00")))
+    }
+
+    @Test fun rejectsNegativeDimensionsAndNegativeCount() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SlabVolumeCalculator.calculate(-1, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SlabVolumeCalculator.calculate(1, BigDecimal("-1"), BigDecimal.ONE, BigDecimal.ONE)
+        }
+    }
+
 }
