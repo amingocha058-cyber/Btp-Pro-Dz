@@ -1014,16 +1014,18 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         val laborTotal = laborLines.sumOf { it.totalCost }
                         val tva = dao.getSetting("tva_percent")?.value?.toBigDecimalOrNull() ?: BigDecimal("19")
                         val totals = runCatching {
-                            require(materialLines.all {
-                                it.quantity.isFinite() && it.quantity > 0.0 &&
-                                    it.unitPriceSnapshot.isFinite() && it.unitPriceSnapshot >= 0.0 &&
-                                    it.totalCost.isFinite() && it.totalCost >= 0.0
-                            }) { "Invalid material quote line values." }
-                            require(laborLines.all {
-                                it.quantity.isFinite() && it.quantity > 0.0 &&
-                                    it.unitPriceSnapshot.isFinite() && it.unitPriceSnapshot >= 0.0 &&
-                                    it.totalCost.isFinite() && it.totalCost >= 0.0
-                            }) { "Invalid labor quote line values." }
+                            materialLines.forEach { line ->
+                                require(line.quantity.isFinite() && line.quantity > 0.0 &&
+                                    line.unitPriceSnapshot.isFinite() && line.unitPriceSnapshot >= 0.0 &&
+                                    line.totalCost.isFinite() && line.totalCost >= 0.0
+                                ) { "Invalid material quote line values." }
+                            }
+                            laborLines.forEach { line ->
+                                require(line.quantity.isFinite() && line.quantity > 0.0 &&
+                                    line.unitPriceSnapshot.isFinite() && line.unitPriceSnapshot >= 0.0 &&
+                                    line.totalCost.isFinite() && line.totalCost >= 0.0
+                                ) { "Invalid labor quote line values." }
+                            }
                             DevisTotalsCalculator.calculate(
                                 BigDecimal.valueOf(materialTotal),
                                 BigDecimal.valueOf(laborTotal),
