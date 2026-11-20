@@ -267,5 +267,13 @@ abstract class BtpDatabase : RoomDatabase() {
                     "btp_pro_dz.db"
                 ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
             }
+
+        /** Closes and clears the singleton before a validated database file is replaced. */
+        fun closeInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }
