@@ -104,4 +104,28 @@ class EarthworkCalculatorTest {
         assertEquals(0, result.netVolumeCubicMeters.compareTo(BigDecimal("5")))
     }
 
+
+    @Test
+    fun backfillRejectsNegativeOccupiedVolume() {
+        assertThrows(IllegalArgumentException::class.java) {
+            EarthworkCalculator.backfill(BigDecimal("5"), BigDecimal("-0.1"))
+        }
+    }
+
+    @Test
+    fun backfillRejectsZeroExcavationVolume() {
+        assertThrows(IllegalArgumentException::class.java) {
+            EarthworkCalculator.backfill(BigDecimal.ZERO, BigDecimal.ZERO)
+        }
+    }
+
+    @Test
+    fun excavationRejectsNegativeDimension() {
+        assertThrows(IllegalArgumentException::class.java) {
+            EarthworkCalculator.trenchExcavation(
+                BigDecimal("10"), BigDecimal("0.6"), BigDecimal("-0.8")
+            )
+        }
+    }
+
 }
