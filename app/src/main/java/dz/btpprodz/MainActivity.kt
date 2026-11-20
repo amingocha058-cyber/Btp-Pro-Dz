@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dz.btpprodz.calculations.concrete.ConcreteVolumeCalculator
 import dz.btpprodz.calculations.concrete.ConcreteVolumeInput
+import dz.btpprodz.domain.calculations.DevisTotalsCalculator
 import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
 import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
@@ -1011,25 +1012,39 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                     } else {
                         val materialTotal = materialLines.sumOf { it.totalCost }
                         val laborTotal = laborLines.sumOf { it.totalCost }
-                        val ht = materialTotal + laborTotal
-                        val tva = dao.getSetting("tva_percent")?.value?.toDoubleOrNull() ?: 19.0
-                        val tax = ht * tva / 100.0
-                        val documentId = dao.insertDevis(
-                            DevisDocumentEntity(
-                                projectId = selectedProject.id,
-                                projectNameSnapshot = selectedProject.name,
-                                clientNameSnapshot = selectedProject.clientName,
-                                totalMaterials = materialTotal,
-                                totalLabor = laborTotal,
-                                totalHt = ht,
-                                tvaPercent = tva,
-                                tvaAmount = tax,
-                                totalTtc = ht + tax
+                        val tva = dao.getSetting("tva_percent")?.value?.toBigDecimalOrNull() ?: BigDecimal("19")
+                        val totals = runCatching {
+                            require((materialLines + laborLines).all {
+                                it.quantity.isFinite() && it.quantity >= 0.0 &&
+                                    it.unitPriceSnapshot.isFinite() && it.unitPriceSnapshot >= 0.0 &&
+                                    it.totalCost.isFinite() && it.totalCost >= 0.0
+                            }) { "Invalid quote line values." }
+                            DevisTotalsCalculator.calculate(
+                                BigDecimal.valueOf(materialTotal),
+                                BigDecimal.valueOf(laborTotal),
+                                tva
                             )
-                        )
-                        dao.insertDevisLines(rows.map { it.copy(devisId = documentId) })
-                        selectedDevisId = documentId
-                        devisMessage = if (isArabic) "تم إنشاء وثيقة Devis وحفظ تفاصيلها." else "Le devis et ses lignes ont été enregistrés."
+                        }.getOrNull()
+                        if (totals == null) {
+                            devisMessage = if (isArabic) "تعذر إنشاء Devis: توجد كميات أو أسعار غير صالحة. راجع البنود ونسبة TVA." else "Devis impossible : quantités, prix ou TVA invalides."
+                        } else {
+                            val documentId = dao.insertDevis(
+                                DevisDocumentEntity(
+                                    projectId = selectedProject.id,
+                                    projectNameSnapshot = selectedProject.name,
+                                    clientNameSnapshot = selectedProject.clientName,
+                                    totalMaterials = totals.materialsHt.toDouble(),
+                                    totalLabor = totals.laborHt.toDouble(),
+                                    totalHt = totals.totalHt.toDouble(),
+                                    tvaPercent = totals.tvaPercent.toDouble(),
+                                    tvaAmount = totals.tvaAmount.toDouble(),
+                                    totalTtc = totals.totalTtc.toDouble()
+                                )
+                            )
+                            dao.insertDevisLines(rows.map { it.copy(devisId = documentId) })
+                            selectedDevisId = documentId
+                            devisMessage = if (isArabic) "تم إنشاء وثيقة Devis وحفظ تفاصيلها." else "Le devis et ses lignes ont été enregistrés."
+                        }
                     }
                     }
                 }
