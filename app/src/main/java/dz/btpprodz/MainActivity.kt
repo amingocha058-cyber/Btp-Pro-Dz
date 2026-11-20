@@ -1054,6 +1054,10 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
 
+    val selectedLinesFlow = remember(selectedDevisId) {
+        selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
+    }
+    val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
     val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" } ?: "Btp Pro Dz"
@@ -1082,10 +1086,6 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             }.getOrElse { (if (isArabic) "فشل تصدير Excel: " else "Excel export failed: ") + (it.message ?: "Unknown error") }
         }
     }
-    val selectedLinesFlow = remember(selectedDevisId) {
-        selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
-    }
-    val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "المشاريع والـ Devis" else "Projets et devis", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
