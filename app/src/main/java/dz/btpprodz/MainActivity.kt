@@ -153,10 +153,10 @@ private fun BtpProDzApp() {
                     OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false; showProjects = false }) {
                         Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
                     }
-                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId) }
+                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId) }
                     if (selectedOtherSection != null) {
                         OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
                         if (selectedOtherSection != "اليد العاملة") {
@@ -295,7 +295,7 @@ private fun BtpProDzApp() {
 }
 
 @Composable
-private fun ConcreteCalculator(isArabic: Boolean) {
+private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
     var elementType by remember { mutableStateOf(0) }
     var quantityText by remember { mutableStateOf("1") }
     var lengthText by remember { mutableStateOf("0.30") }
@@ -394,13 +394,14 @@ private fun ConcreteCalculator(isArabic: Boolean) {
                 if (!valid) Text(if (isArabic) "أدخل أعداداً وأبعاداً أكبر من الصفر لعرض نتيجة صحيحة." else "Saisissez des quantités et dimensions supérieures à zéro.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
+        CalculatedQuantityCostEntry("الخرسانة", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
     }
 }
 
 
 @Composable
-private fun FoundationCalculator(isArabic: Boolean) {
+private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
     var foundationType by remember { mutableStateOf(0) }
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("1.20") }
@@ -480,6 +481,7 @@ private fun FoundationCalculator(isArabic: Boolean) {
                 }
             }
         }
+        CalculatedQuantityCostEntry("الأساسات", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع. هذه حاسبة حجم أولية، ويجب إدخال الأبعاد حسب شكل العنصر." else "Calcul : quantité × longueur × largeur × hauteur. Calcul volumique simple, selon les dimensions de l’élément.",
             style = MaterialTheme.typography.bodySmall
@@ -489,7 +491,7 @@ private fun FoundationCalculator(isArabic: Boolean) {
 
 
 @Composable
-private fun EarthworksCalculator(isArabic: Boolean) {
+private fun EarthworksCalculator(isArabic: Boolean, projectId: Long?) {
     var operation by remember { mutableStateOf(0) }
     var quantityText by remember { mutableStateOf("1") }
     var lengthText by remember { mutableStateOf("10") }
@@ -575,6 +577,7 @@ private fun EarthworksCalculator(isArabic: Boolean) {
                 )
             }
         }
+        CalculatedQuantityCostEntry(if (operation == 0) "الحفر والردم - حفر" else "الحفر والردم - ردم", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحفر = الطول × العرض × العمق. الردم الصافي = حجم الحفر − حجم المنشأ المشغول لكل منطقة. لا يشمل الحساب انتفاش التربة أو الدمك." else "Déblai = longueur × largeur × profondeur. Remblai net = volume excavé − volume occupé par la structure. Hors foisonnement et compactage.",
             style = MaterialTheme.typography.bodySmall
@@ -584,7 +587,7 @@ private fun EarthworksCalculator(isArabic: Boolean) {
 
 
 @Composable
-private fun ColumnBeamCalculator(isArabic: Boolean) {
+private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
     var elementType by remember { mutableStateOf(0) }
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("3.00") }
@@ -656,6 +659,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
                 )
             }
         }
+        CalculatedQuantityCostEntry("الأعمدة والجسور", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
             style = MaterialTheme.typography.bodySmall
