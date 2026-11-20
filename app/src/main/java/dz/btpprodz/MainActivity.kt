@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dz.btpprodz.domain.calculations.EarthworkCalculator
+import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -290,15 +291,24 @@ private fun FoundationCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val depth = depthText.toDoubleOrNull() ?: 0.0
-    val unitVolume = length * width * depth
-    val calculatedTotalVolume = quantity * unitVolume
-    val valid = quantity.isFinite() && quantity > 0.0 &&
-        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
-        length.isFinite() && length > 0.0 &&
-        width.isFinite() && width > 0.0 &&
-        depth.isFinite() && depth > 0.0 &&
-        unitVolume.isFinite() && calculatedTotalVolume.isFinite()
-    val totalVolume = if (valid) calculatedTotalVolume else 0.0
+    val countValid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
+    val dimensionsValid = length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 && depth.isFinite() && depth > 0.0
+    val foundationResult = if (countValid && dimensionsValid) runCatching {
+        val count = quantity.toInt()
+        val l = BigDecimal.valueOf(length)
+        val w = BigDecimal.valueOf(width)
+        val d = BigDecimal.valueOf(depth)
+        when (foundationType) {
+            0 -> FoundationVolumeCalculator.isolatedFootings(count, l, w, d)
+            1 -> FoundationVolumeCalculator.stripFootingRuns(count, l, w, d)
+            else -> FoundationVolumeCalculator.gradeBeamRuns(count, l, w, d)
+        }
+    }.getOrNull() else null
+    val valid = foundationResult != null
+    val unitVolume = foundationResult?.volumePerElementM3?.toDouble() ?: 0.0
+    val totalVolume = foundationResult?.totalVolumeM3?.toDouble() ?: 0.0
     val typesAr = listOf("قواعد منفردة", "قواعد شريطية", "سملات / ميدات")
     val typesFr = listOf("Semelles isolées", "Semelles filantes", "Longrines")
 
