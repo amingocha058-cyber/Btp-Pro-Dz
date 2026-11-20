@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
+import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -475,15 +476,21 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val height = heightText.toDoubleOrNull() ?: 0.0
-    val unitVolume = length * width * height
-    val calculatedTotalVolume = quantity * unitVolume
-    val valid = quantity.isFinite() && quantity > 0.0 &&
-        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
-        length.isFinite() && length > 0.0 &&
-        width.isFinite() && width > 0.0 &&
-        height.isFinite() && height > 0.0 &&
-        unitVolume.isFinite() && calculatedTotalVolume.isFinite()
-    val totalVolume = if (valid) calculatedTotalVolume else 0.0
+    val countValid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
+    val dimensionsValid = length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 && height.isFinite() && height > 0.0
+    val volumeResult = if (countValid && dimensionsValid) runCatching {
+        LinearElementVolumeCalculator.calculate(
+            quantity.toInt(),
+            BigDecimal.valueOf(length),
+            BigDecimal.valueOf(width),
+            BigDecimal.valueOf(height)
+        )
+    }.getOrNull() else null
+    val valid = volumeResult != null
+    val unitVolume = volumeResult?.volumePerElementM3?.toDouble() ?: 0.0
+    val totalVolume = volumeResult?.totalVolumeM3?.toDouble() ?: 0.0
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
