@@ -267,9 +267,9 @@ private fun ConcreteCalculator(isArabic: Boolean) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre d’éléments : ${if (quantity >= 0) quantity.toInt() else 0}")
-                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(perElementVolume)} م³" else "Volume unitaire : ${"%.3f".format(perElementVolume)} m³")
-                Text(if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "عدد العناصر: ${if (valid) quantity.toInt().toString() else "—"}" else "Nombre d’éléments : ${if (valid) quantity.toInt().toString() else "—"}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${if (valid) "%.3f".format(perElementVolume) else "—"} م³" else "Volume unitaire : ${if (valid) "%.3f".format(perElementVolume) else "—"} m³")
+                Text(if (isArabic) "الحجم الإجمالي: ${if (valid) "%.3f".format(totalVolume) else "—"} م³" else "Volume total : ${if (valid) "%.3f".format(totalVolume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 if (!valid) Text(if (isArabic) "أدخل أعداداً وأبعاداً أكبر من الصفر لعرض نتيجة صحيحة." else "Saisissez des quantités et dimensions supérieures à zéro.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -334,8 +334,8 @@ private fun FoundationCalculator(isArabic: Boolean) {
             ) {
                 Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(if (isArabic) "نوع الأساس: ${typesAr[foundationType]}" else "Type : ${typesFr[foundationType]}")
-                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Quantité : ${if (quantity >= 0) quantity.toInt() else 0}")
-                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(unitVolume)} م³" else "Volume unitaire : ${"%.3f".format(unitVolume)} m³")
+                Text(if (isArabic) "عدد العناصر: ${if (valid) quantity.toInt().toString() else "—"}" else "Quantité : ${if (valid) quantity.toInt().toString() else "—"}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${if (valid) "%.3f".format(unitVolume) else "—"} م³" else "Volume unitaire : ${if (valid) "%.3f".format(unitVolume) else "—"} m³")
                 Text(
                     if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
                     style = MaterialTheme.typography.titleLarge,
@@ -506,8 +506,8 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
             ) {
                 Text(if (isArabic) "النتيجة" else "Résultat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(if (isArabic) "نوع العنصر: ${if (elementType == 0) "عمود" else "جسر"}" else "Élément : ${if (elementType == 0) "Poteau" else "Poutre"}")
-                Text(if (isArabic) "عدد العناصر: ${if (quantity >= 0) quantity.toInt() else 0}" else "Nombre d’éléments : ${if (quantity >= 0) quantity.toInt() else 0}")
-                Text(if (isArabic) "حجم العنصر الواحد: ${"%.3f".format(unitVolume)} م³" else "Volume unitaire : ${"%.3f".format(unitVolume)} m³")
+                Text(if (isArabic) "عدد العناصر: ${if (valid) quantity.toInt().toString() else "—"}" else "Nombre d’éléments : ${if (valid) quantity.toInt().toString() else "—"}")
+                Text(if (isArabic) "حجم العنصر الواحد: ${if (valid) "%.3f".format(unitVolume) else "—"} م³" else "Volume unitaire : ${if (valid) "%.3f".format(unitVolume) else "—"} m³")
                 Text(
                     if (isArabic) "الحجم الإجمالي: ${"%.3f".format(totalVolume)} م³" else "Volume total : ${"%.3f".format(totalVolume)} m³",
                     style = MaterialTheme.typography.titleLarge,
