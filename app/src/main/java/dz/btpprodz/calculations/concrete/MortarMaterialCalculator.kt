@@ -42,9 +42,15 @@ object MortarMaterialCalculator {
         val appliedVolume = input.mortarVolumeM3 * (1.0 + input.wastePercent / 100.0)
         require(appliedVolume.isFinite()) { "Applied volume is outside the supported range." }
 
+        val cementKg = appliedVolume * input.dosage.cementKgPerM3
+        val sandM3 = appliedVolume * input.dosage.sandM3PerM3
+        require(cementKg.isFinite() && sandM3.isFinite()) {
+            "Calculated mortar quantities are outside the supported range."
+        }
+
         return MortarMaterialResult(
-            cementKg = appliedVolume * input.dosage.cementKgPerM3,
-            sandM3 = appliedVolume * input.dosage.sandM3PerM3,
+            cementKg = cementKg,
+            sandM3 = sandM3,
             appliedVolumeM3 = appliedVolume
         )
     }
