@@ -46,6 +46,8 @@ import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
 import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
 import dz.btpprodz.domain.calculations.SurfaceAreaCalculator
+import dz.btpprodz.domain.calculations.SlabVolumeCalculator
+import dz.btpprodz.domain.calculations.StairVolumeCalculator
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -608,6 +610,9 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     var openingAreaText by remember(section) { mutableStateOf("0") }
     var tileLengthText by remember(section) { mutableStateOf("0.60") }
     var tileWidthText by remember(section) { mutableStateOf("0.60") }
+    var stairStepCountText by remember(section) { mutableStateOf("10") }
+    var stairTreadText by remember(section) { mutableStateOf("0.30") }
+    var stairRiserText by remember(section) { mutableStateOf("0.17") }
 
     val count = countText.toDoubleOrNull() ?: 0.0
     val length = lengthText.toDoubleOrNull() ?: 0.0
@@ -617,6 +622,9 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
     val openings = openingAreaText.toDoubleOrNull() ?: 0.0
     val tileLength = tileLengthText.toDoubleOrNull() ?: 0.0
     val tileWidth = tileWidthText.toDoubleOrNull() ?: 0.0
+    val stairStepCount = stairStepCountText.toIntOrNull() ?: 0
+    val stairTread = stairTreadText.toDoubleOrNull() ?: 0.0
+    val stairRiser = stairRiserText.toDoubleOrNull() ?: 0.0
 
     val isWall = section == "الجدران والبناء"
     val isRoof = section == "السقوف والبلاطات"
@@ -633,21 +641,40 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
                 totalOpeningsM2 = BigDecimal.valueOf(openings)
             ).toDouble()
         }.getOrDefault(-1.0)
-        isRoof || isFloor -> count * length * width
-        isStairs -> count * length * width
+        isRoof || isFloor || isStairs -> count * length * width
         else -> 0.0
     }
-    val volume = if (isRoof) area * height else 0.0
+    val volume = when {
+        isRoof -> runCatching {
+            SlabVolumeCalculator.calculate(
+                count.toInt(), BigDecimal.valueOf(length), BigDecimal.valueOf(width),
+                BigDecimal.valueOf(height)
+            ).toDouble()
+        }.getOrDefault(-1.0)
+        isStairs -> runCatching {
+            StairVolumeCalculator.calculate(
+                count = count.toInt(),
+                stairWidth = BigDecimal.valueOf(width),
+                slopingLength = BigDecimal.valueOf(length),
+                waistThickness = BigDecimal.valueOf(height),
+                stepCount = stairStepCount,
+                treadDepth = BigDecimal.valueOf(stairTread),
+                riserHeight = BigDecimal.valueOf(stairRiser)
+            ).totalVolumeM3.toDouble()
+        }.getOrDefault(-1.0)
+        else -> 0.0
+    }
     val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
     val laborTotal = if (isLabor && count >= 0 && unitPrice >= 0) count * unitPrice else 0.0
-    val inputsFinite = listOf(count, length, width, height, unitPrice, openings, tileLength, tileWidth).all { it.isFinite() }
+    val inputsFinite = listOf(count, length, width, height, unitPrice, openings, tileLength, tileWidth, stairTread, stairRiser).all { it.isFinite() }
     val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && laborTotal.isFinite()
     val valid = inputsFinite && outputsFinite && count > 0.0 &&
         (isLabor || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
         (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
         (isLabor || openings >= 0.0) &&
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
-        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish) || area >= 0.0)
+        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish) || area >= 0.0) &&
+        (!isStairs || (stairStepCount > 0 && stairTread > 0.0 && stairRiser > 0.0))
 
     val titleAr = section
     val titleFr = when(section) {
@@ -666,12 +693,18 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
             NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
         } else {
             NumberField(if (isArabic) "عدد العناصر / الغرف / المساحات" else "Nombre d’éléments / pièces / surfaces", countText) { countText = it }
-            NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
+            NumberField(if (isArabic) if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
             NumberField(if (isArabic) if (isWall || isFinish) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
             if (isWall || isFinish) {
                 NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
             } else if (!isStairs && !isRoof) {
                 NumberField(if (isArabic) "البعد الإضافي (م)" else "Dimension supplémentaire (m)", heightText) { heightText = it }
+            }
+            if (isStairs) {
+                NumberField(if (isArabic) "سماكة بطن السلم (م)" else "Épaisseur de paillasse (m)", heightText) { heightText = it }
+                NumberField(if (isArabic) "عدد الدرجات" else "Nombre de marches", stairStepCountText) { stairStepCountText = it }
+                NumberField(if (isArabic) "عمق الدرجة (م)" else "Giron (m)", stairTreadText) { stairTreadText = it }
+                NumberField(if (isArabic) "ارتفاع الدرجة (م)" else "Hauteur de marche (m)", stairRiserText) { stairRiserText = it }
             }
             if (isFloor) {
                 NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
@@ -689,6 +722,9 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
                     isLabor -> {
                         Text(if (isArabic) "إجمالي وحدات العمل: ${if (valid) "%.2f".format(count) else "—"}" else "Total des unités : ${if (valid) "%.2f".format(count) else "—"}")
                         Text(if (isArabic) "التكلفة الإجمالية: ${if (valid) "%.2f".format(laborTotal) else "—"} دج" else "Coût total : ${if (valid) "%.2f".format(laborTotal) else "—"} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    isStairs -> {
+                        Text(if (isArabic) "حجم خرسانة السلم التقديري: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume estimé de béton de l’escalier : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
                     isRoof -> {
                         Text(if (isArabic) "المساحة: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface : ${if (valid) "%.3f".format(area) else "—"} m²")
