@@ -220,8 +220,45 @@ private fun BtpProDzApp() {
                         }
                     } else {
                         items(constructionStages) { stage ->
+                            val stageIndex = constructionStages.indexOf(stage)
+                            val stageDescriptionAr = listOf(
+                                "فتح حاسبة الحفر والردم لتقدير الحجوم الأولية.",
+                                "حساب أحجام القواعد والسملات والأساسات.",
+                                "حساب أحجام الخرسانة للأعمدة والجسور.",
+                                "حساب مساحات الجدران وخصم الفتحات.",
+                                "حساب مساحة البلاطة وحجم الخرسانة.",
+                                "حساب مساحات التلبيس والطلاء.",
+                                "حساب مساحة الأرضيات وعدد البلاطات.",
+                                "متابعة الأشغال النهائية من أقسام التشطيبات."
+                            )[stageIndex]
+                            val stageDescriptionFr = listOf(
+                                "Ouvrir le calcul des déblais et remblais.",
+                                "Calculer les volumes géométriques des fondations.",
+                                "Calculer les volumes de béton des poteaux et poutres.",
+                                "Calculer les surfaces des murs avec déduction des ouvertures.",
+                                "Calculer la surface et le volume de la dalle.",
+                                "Calculer les surfaces d’enduit et de peinture.",
+                                "Calculer la surface du sol et le nombre de carreaux.",
+                                "Accéder aux rubriques de finition."
+                            )[stageIndex]
                             Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    showConcreteCalculator = false
+                                    showFoundationCalculator = false
+                                    showEarthworksCalculator = false
+                                    showColumnBeamCalculator = false
+                                    selectedOtherSection = null
+                                    when (stageIndex) {
+                                        0 -> showEarthworksCalculator = true
+                                        1 -> showFoundationCalculator = true
+                                        2 -> showColumnBeamCalculator = true
+                                        3 -> selectedOtherSection = "الجدران والبناء"
+                                        4 -> selectedOtherSection = "السقوف والبلاطات"
+                                        5 -> selectedOtherSection = "التلبيس والطلاء"
+                                        6 -> selectedOtherSection = "الأرضيات والتبليط"
+                                        else -> selectedOtherSection = "التلبيس والطلاء"
+                                    }
+                                },
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -229,6 +266,16 @@ private fun BtpProDzApp() {
                                         if (isArabic) stage.first else stage.second,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        if (isArabic) stageDescriptionAr else stageDescriptionFr,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        if (isArabic) "اضغط لفتح الحاسبة ←" else "Appuyer pour ouvrir le calculateur →",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
