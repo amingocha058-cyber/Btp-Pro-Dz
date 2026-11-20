@@ -19,6 +19,14 @@ data class ProjectReportRow(
         require(quantity.isFinite() && quantity >= 0.0) { "Quantity must be finite and non-negative." }
         require(unitPriceDa.isFinite() && unitPriceDa >= 0.0) { "Unit price must be finite and non-negative." }
         require(totalDa.isFinite() && totalDa >= 0.0) { "Total must be finite and non-negative." }
+        val expectedTotal = java.math.BigDecimal.valueOf(quantity)
+            .multiply(java.math.BigDecimal.valueOf(unitPriceDa))
+            .setScale(2, java.math.RoundingMode.HALF_UP)
+        val storedTotal = java.math.BigDecimal.valueOf(totalDa)
+            .setScale(2, java.math.RoundingMode.HALF_UP)
+        require(expectedTotal.compareTo(storedTotal) == 0) {
+            "Report row total must match quantity multiplied by unit price."
+        }
     }
 }
 
