@@ -680,8 +680,11 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
 
     val selectedMaterial = materials.firstOrNull { it.id == selectedMaterialId }
     val quantity = quantityText.toDoubleOrNull() ?: 0.0
-    val valid = selectedMaterial != null && quantity > 0.0 && projectId != null
-    val estimatedCost = if (valid) quantity * (selectedMaterial?.currentPrice ?: 0.0) else 0.0
+    val estimatedCostCandidate = quantity * (selectedMaterial?.currentPrice ?: 0.0)
+    val valid = selectedMaterial != null && quantity.isFinite() && quantity > 0.0 &&
+        selectedMaterial.currentPrice.isFinite() && selectedMaterial.currentPrice >= 0.0 &&
+        estimatedCostCandidate.isFinite() && projectId != null
+    val estimatedCost = if (valid) estimatedCostCandidate else 0.0
     val totalRecorded = costs.sumOf { it.totalCost }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -723,7 +726,9 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
             Button(
                 onClick = {
                     val material = selectedMaterial
-                    if (material != null && quantity > 0) {
+                    if (material != null && quantity.isFinite() && quantity > 0.0 &&
+                        material.currentPrice.isFinite() && material.currentPrice >= 0.0 &&
+                        (quantity * material.currentPrice).isFinite()) {
                         scope.launch {
                             dao.insertCalculationCost(
                                 CalculationCostEntity(
@@ -775,6 +780,10 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
     var quantityText by remember(section) { mutableStateOf("1") }
     val rate = rates.firstOrNull { it.id == selectedId }
     val quantity = quantityText.toDoubleOrNull() ?: 0.0
+    val calculatedTotal = quantity * (rate?.unitPrice ?: 0.0)
+    val validLaborEntry = rate != null && quantity.isFinite() && quantity > 0.0 &&
+        rate.unitPrice.isFinite() && rate.unitPrice >= 0.0 && calculatedTotal.isFinite() &&
+        projectId != null
     val total = costs.sumOf { it.totalCost }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (projectId == null) Text(if (isArabic) "اختر مشروعاً من شاشة المشاريع قبل تسجيل التكاليف." else "Sélectionnez un projet dans l’écran Projets avant d’enregistrer des coûts.", color = MaterialTheme.colorScheme.error)
@@ -788,13 +797,13 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
         }
         if (rate != null) {
             NumberField(if (isArabic) "الكمية (" + rate.unit + ")" else "Quantité (" + rate.unit + ")", quantityText) { quantityText = it }
-            Text(if (isArabic) "التكلفة التقديرية: " + "%.2f".format(quantity * rate.unitPrice) + " دج" else "Coût estimé : " + "%.2f".format(quantity * rate.unitPrice) + " DA")
+            Text(if (isArabic) "التكلفة التقديرية: " + "%.2f".format(if (validLaborEntry) calculatedTotal else 0.0) + " دج" else "Coût estimé : " + "%.2f".format(if (validLaborEntry) calculatedTotal else 0.0) + " DA")
             Button(onClick = {
-                if (quantity > 0) scope.launch {
+                if (validLaborEntry && rate != null) scope.launch {
                     dao.insertLaborCost(LaborCostEntity(section = section, tradeName = rate.tradeName, quantity = quantity, unit = rate.unit, unitPriceSnapshot = rate.unitPrice, totalCost = quantity * rate.unitPrice, projectId = projectId))
                     quantityText = "1"
                 }
-            }, enabled = quantity > 0 && projectId != null, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
+            }, enabled = validLaborEntry, modifier = Modifier.fillMaxWidth()) { Text(if (isArabic) "حفظ بند اليد العاملة" else "Enregistrer la main-d’œuvre") }
         }
         Text(if (isArabic) "مجموع اليد العاملة المسجل: " + "%.2f".format(total) + " دج" else "Total main-d’œuvre : " + "%.2f".format(total) + " DA", fontWeight = FontWeight.Bold)
         costs.forEach { item -> Text("• " + item.tradeName + ": " + item.quantity + " " + item.unit + " × " + item.unitPriceSnapshot + " = " + "%.2f".format(item.totalCost) + " DA", style = MaterialTheme.typography.bodySmall) }
@@ -870,7 +879,7 @@ private fun SettingsScreen(isArabic: Boolean) {
         NumberField(if (isArabic) "السعر بالدينار الجزائري (دج)" else "Prix en dinars algériens (DA)", materialPrice) { materialPrice = it }
         Button(onClick = {
             val price = materialPrice.toDoubleOrNull()
-            if (price != null && price >= 0 && materialName.isNotBlank() && materialUnit.isNotBlank()) {
+            if (price != null && price.isFinite() && price >= 0 && materialName.isNotBlank() && materialUnit.isNotBlank()) {
                 scope.launch {
                     val name = materialName.trim()
                     val unit = materialUnit.trim()
@@ -893,7 +902,7 @@ private fun SettingsScreen(isArabic: Boolean) {
                     materialPrice = ""
                 }
             }
-        }, enabled = materialName.isNotBlank() && materialUnit.isNotBlank() && (materialPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
+        }, enabled = materialName.isNotBlank() && materialUnit.isNotBlank() && (materialPrice.toDoubleOrNull()?.let { it.isFinite() && it >= 0 } == true)) {
             Text(if (isArabic) "حفظ / تحديث السعر" else "Enregistrer / actualiser le prix")
         }
 
@@ -914,13 +923,13 @@ private fun SettingsScreen(isArabic: Boolean) {
         NumberField(if (isArabic) "السعر بالدينار الجزائري" else "Tarif en DA", laborPrice) { laborPrice = it }
         Button(onClick = {
             val price = laborPrice.toDoubleOrNull()
-            if (price != null && price >= 0 && laborTrade.isNotBlank() && laborUnit.isNotBlank()) scope.launch {
+            if (price != null && price.isFinite() && price >= 0 && laborTrade.isNotBlank() && laborUnit.isNotBlank()) scope.launch {
                 val oldRate = dao.findLaborRate(laborTrade.trim())
                 dao.saveLaborRate(LaborRateEntity(id = oldRate?.id ?: 0, tradeName = laborTrade.trim(), unit = laborUnit.trim(), unitPrice = price))
                 laborTrade = ""
                 laborPrice = ""
             }
-        }, enabled = laborTrade.isNotBlank() && laborUnit.isNotBlank() && (laborPrice.toDoubleOrNull()?.let { it >= 0 } == true)) {
+        }, enabled = laborTrade.isNotBlank() && laborUnit.isNotBlank() && (laborPrice.toDoubleOrNull()?.let { it.isFinite() && it >= 0 } == true)) {
             Text(if (isArabic) "حفظ / تحديث سعر المهنة" else "Enregistrer / actualiser le tarif")
         }
         if (laborRates.isEmpty()) Text(if (isArabic) "لا توجد أسعار مهن مسجلة." else "Aucun tarif enregistré.")
