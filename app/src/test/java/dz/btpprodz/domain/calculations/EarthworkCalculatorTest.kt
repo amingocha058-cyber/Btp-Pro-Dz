@@ -71,4 +71,37 @@ class EarthworkCalculatorTest {
             )
         }
     }
+
+    @Test
+    fun excavationConvertsMillimetersToCubicMeters() {
+        val result = EarthworkCalculator.rectangularExcavation(
+            length = BigDecimal("1000"),
+            width = BigDecimal("500"),
+            depth = BigDecimal("200"),
+            unit = LengthUnit.MILLIMETER
+        )
+
+        assertEquals(0, result.volumeCubicMeters.compareTo(BigDecimal("0.1")))
+    }
+
+    @Test
+    fun backfillAllowsOccupiedVolumeEqualToExcavation() {
+        val result = EarthworkCalculator.backfill(
+            excavationVolume = BigDecimal("5"),
+            occupiedVolume = BigDecimal("5")
+        )
+
+        assertEquals(0, result.netVolumeCubicMeters.compareTo(BigDecimal.ZERO))
+    }
+
+    @Test
+    fun backfillAllowsZeroOccupiedVolume() {
+        val result = EarthworkCalculator.backfill(
+            excavationVolume = BigDecimal("5"),
+            occupiedVolume = BigDecimal.ZERO
+        )
+
+        assertEquals(0, result.netVolumeCubicMeters.compareTo(BigDecimal("5")))
+    }
+
 }
