@@ -59,4 +59,14 @@ class ProjectReportExporterTest {
     fun rejectsInvalidNumericReportRows() {
         ProjectReportRow("Concrete", Double.NaN, "m3", 100.0, 100.0)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsReportRowsWhoseStoredTotalDoesNotMatchQuantityAndPrice() {
+        ProjectReportRow("Concrete", 2.0, "m3", 100.0, 199.99)
+    }
+
+    @Test
+    fun acceptsRoundedLineTotalsAtTwoDecimalPlaces() {
+        ProjectReportRow("Concrete", 1.0, "m3", 10.005, 10.01)
+    }
 }
