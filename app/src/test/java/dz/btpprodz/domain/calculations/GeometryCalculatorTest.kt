@@ -61,4 +61,29 @@ class GeometryCalculatorTest {
             )
         }
     }
+
+    @Test
+    fun rectangleConvertsMillimetersToSquareMeters() {
+        val result = GeometryCalculator.rectangle(
+            length = BigDecimal("5000"),
+            width = BigDecimal("3000"),
+            unit = LengthUnit.MILLIMETER
+        )
+
+        assertEquals(0, result.areaSquareMeters.compareTo(BigDecimal("15")))
+        assertEquals(0, result.perimeterMeters.compareTo(BigDecimal("16")))
+    }
+
+    @Test
+    fun cuboidConvertsMillimetersToCubicMeters() {
+        val result = GeometryCalculator.cuboid(
+            length = BigDecimal("1000"),
+            width = BigDecimal("500"),
+            height = BigDecimal("200"),
+            unit = LengthUnit.MILLIMETER
+        )
+
+        assertEquals(0, result.volumeCubicMeters.compareTo(BigDecimal("0.1")))
+    }
+
 }
