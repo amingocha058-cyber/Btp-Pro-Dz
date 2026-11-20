@@ -157,7 +157,13 @@ private fun BtpProDzApp() {
                     if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId) }
                     if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId) }
                     if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId) }
-                    if (selectedOtherSection != null) { OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic); if (selectedOtherSection != "اليد العاملة") { CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId) } }
+                    if (selectedOtherSection != null) {
+                        OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                        if (selectedOtherSection != "اليد العاملة") {
+                            CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                        }
+                    }
                     if (showSettings) SettingsScreen(isArabic = isArabic)
                     if (showProjects) ProjectsScreen(isArabic = isArabic, onProjectSelected = { activeProjectId = it })
                 } else {
@@ -659,7 +665,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean) {
 
 
 @Composable
-private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
+private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: Long?) {
     var countText by remember(section) { mutableStateOf("1") }
     var lengthText by remember(section) { mutableStateOf("5") }
     var widthText by remember(section) { mutableStateOf(if (section == "السلالم") "1.2" else "3") }
@@ -744,6 +750,14 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
         else -> "Main-d’œuvre"
     }
 
+    val calculatedQuantity = when {
+        !valid -> 0.0
+        isRoof || isStairs -> volume
+        isWall || isFinish || isFloor -> area
+        else -> 0.0
+    }
+    val calculatedUnit = if (isRoof || isStairs) "م³" else "م²"
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) titleAr else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         if (isLabor) {
@@ -800,6 +814,9 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean) {
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+        }
+        if (!isLabor) {
+            CalculatedQuantityCostEntry(section, projectId, calculatedQuantity, calculatedUnit, isArabic)
         }
         Text(
             if (isArabic) "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ. في حساب اليد العاملة، أدخل عدد الوحدات وسعر الوحدة المناسب." else "Estimations de quantités. Hors pertes, spécifications des matériaux et détails d’exécution. Pour la main-d’œuvre, saisissez le nombre d’unités et le prix unitaire.",
@@ -1332,6 +1349,75 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             }
         }
         Text(if (isArabic) "تُحفظ تفاصيل كل Devis بصورة مستقلة؛ التعديلات اللاحقة على أسعار المواد أو أجور العمال لا تغيّر الوثائق السابقة." else "Chaque devis conserve ses propres lignes ; les modifications ultérieures des tarifs ne changent pas les documents existants.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+
+@Composable
+private fun CalculatedQuantityCostEntry(
+    section: String,
+    projectId: Long?,
+    quantity: Double,
+    unit: String,
+    isArabic: Boolean
+) {
+    val context = LocalContext.current
+    val dao = remember { BtpDatabase.getInstance(context).appDataDao() }
+    val scope = rememberCoroutineScope()
+    var unitPriceText by remember(section) { mutableStateOf("") }
+    var message by remember(section) { mutableStateOf<String?>(null) }
+    val unitPrice = unitPriceText.toDoubleOrNull()
+    val total = unitPrice?.let { quantity * it } ?: Double.NaN
+    val canSave = projectId != null && quantity.isFinite() && quantity > 0.0 &&
+        unitPrice != null && unitPrice.isFinite() && unitPrice >= 0.0 && total.isFinite()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Divider()
+        Text(
+            if (isArabic) "إضافة الكمية المحسوبة إلى المشروع وDevis" else "Ajouter la quantité calculée au projet et au devis",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        if (projectId == null) {
+            Text(
+                if (isArabic) "اختر مشروعاً أولاً من شاشة المشاريع حتى تتمكن من إدراج هذه الكمية في Devis." else "Sélectionnez d’abord un projet pour ajouter cette quantité au devis.",
+                color = MaterialTheme.colorScheme.error
+            )
+        } else {
+            Text(if (isArabic) "الكمية المحسوبة: ${"%.3f".format(quantity)} $unit" else "Quantité calculée : ${"%.3f".format(quantity)} $unit")
+            NumberField(if (isArabic) "سعر الوحدة (دج / $unit)" else "Prix unitaire (DA / $unit)", unitPriceText) { unitPriceText = it }
+            Text(
+                if (isArabic) "المجموع: ${if (total.isFinite()) "%.2f".format(total) else "—"} دج" else "Total : ${if (total.isFinite()) "%.2f".format(total) else "—"} DA",
+                fontWeight = FontWeight.SemiBold
+            )
+            Button(
+                onClick = {
+                    val price = unitPrice ?: return@Button
+                    scope.launch {
+                        runCatching {
+                            dao.insertCalculationCost(
+                                CalculationCostEntity(
+                                    section = section,
+                                    materialName = "كمية محسوبة - $section",
+                                    quantity = quantity,
+                                    unit = unit,
+                                    unitPriceSnapshot = price,
+                                    totalCost = total,
+                                    projectId = projectId
+                                )
+                            )
+                        }.onSuccess {
+                            message = if (isArabic) "تم حفظ الكمية والتكلفة في المشروع. أنشئ Devis من شاشة المشاريع لإدراجها." else "Quantité et coût enregistrés. Créez le devis depuis l’écran Projets."
+                            unitPriceText = ""
+                        }.onFailure {
+                            message = (if (isArabic) "تعذر الحفظ: " else "Échec : ") + (it.message ?: "Erreur")
+                        }
+                    }
+                },
+                enabled = canSave,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (isArabic) "حفظ الكمية والتكلفة للمشروع" else "Enregistrer quantité et coût") }
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
     }
 }
 
