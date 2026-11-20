@@ -36,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dz.btpprodz.calculations.concrete.ConcreteVolumeCalculator
+import dz.btpprodz.calculations.concrete.ConcreteVolumeInput
 import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
 import dz.btpprodz.domain.calculations.LinearElementVolumeCalculator
@@ -235,15 +237,23 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     val length = lengthText.toDoubleOrNull() ?: 0.0
     val width = widthText.toDoubleOrNull() ?: 0.0
     val height = heightText.toDoubleOrNull() ?: 0.0
-    val perElementVolume = length * width * height
-    val calculatedTotalVolume = quantity * perElementVolume
-    val valid = quantity.isFinite() && quantity > 0.0 &&
-        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE &&
-        length.isFinite() && length > 0.0 &&
-        width.isFinite() && width > 0.0 &&
-        height.isFinite() && height > 0.0 &&
-        perElementVolume.isFinite() && calculatedTotalVolume.isFinite()
-    val totalVolume = if (valid) calculatedTotalVolume else 0.0
+    val countValid = quantity.isFinite() && quantity > 0.0 &&
+        quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
+    val dimensionsValid = length.isFinite() && length > 0.0 &&
+        width.isFinite() && width > 0.0 && height.isFinite() && height > 0.0
+    val volumeResult = if (countValid && dimensionsValid) runCatching {
+        ConcreteVolumeCalculator.calculate(
+            ConcreteVolumeInput(
+                lengthM = length,
+                widthM = width,
+                heightM = height,
+                quantity = quantity.toInt()
+            )
+        )
+    }.getOrNull() else null
+    val valid = volumeResult != null
+    val perElementVolume = volumeResult?.volumePerUnitM3 ?: 0.0
+    val totalVolume = volumeResult?.totalVolumeM3 ?: 0.0
 
     val dimensionLabels = when (elementType) {
         0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
