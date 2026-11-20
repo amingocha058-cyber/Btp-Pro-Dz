@@ -36,6 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dz.btpprodz.calculations.concrete.ConcreteMaterialCalculator
+import dz.btpprodz.calculations.concrete.ConcreteDosage
+import dz.btpprodz.calculations.concrete.ConcreteMaterialInput
 import dz.btpprodz.calculations.concrete.ConcreteVolumeCalculator
 import dz.btpprodz.calculations.concrete.ConcreteVolumeInput
 import dz.btpprodz.domain.calculations.DevisTotalsCalculator
@@ -231,6 +234,10 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     var lengthText by remember { mutableStateOf("0.30") }
     var widthText by remember { mutableStateOf("0.30") }
     var heightText by remember { mutableStateOf("0.30") }
+    var cementDosageText by remember { mutableStateOf("") }
+    var sandDosageText by remember { mutableStateOf("") }
+    var gravelDosageText by remember { mutableStateOf("") }
+    var wasteText by remember { mutableStateOf("0") }
 
     val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
     val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
@@ -255,6 +262,20 @@ private fun ConcreteCalculator(isArabic: Boolean) {
     val valid = volumeResult != null
     val perElementVolume = volumeResult?.volumePerUnitM3 ?: 0.0
     val totalVolume = volumeResult?.totalVolumeM3 ?: 0.0
+    val cementDosage = cementDosageText.toDoubleOrNull()
+    val sandDosage = sandDosageText.toDoubleOrNull()
+    val gravelDosage = gravelDosageText.toDoubleOrNull()
+    val waste = wasteText.toDoubleOrNull()
+    val materialResult = if (valid && cementDosage != null && sandDosage != null &&
+        gravelDosage != null && waste != null) runCatching {
+        ConcreteMaterialCalculator.calculate(
+            ConcreteMaterialInput(
+                concreteVolumeM3 = totalVolume,
+                dosage = ConcreteDosage(cementDosage, sandDosage, gravelDosage),
+                wastePercent = waste
+            )
+        )
+    }.getOrNull() else null
 
     val dimensionLabels = when (elementType) {
         0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
@@ -276,6 +297,26 @@ private fun ConcreteCalculator(isArabic: Boolean) {
         NumberField(dimensionLabels[0], lengthText) { lengthText = it }
         NumberField(dimensionLabels[1], widthText) { widthText = it }
         NumberField(dimensionLabels[2], heightText) { heightText = it }
+
+        Text(if (isArabic) "تقدير مواد الخرسانة (اختياري)" else "Estimation des matériaux (facultatif)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "أدخل جرعة المشروع لكل 1 م³ كما حددها المهندس أو مواصفات المشروع. لا توجد خلطة افتراضية." else "Saisissez le dosage du projet par 1 m³ selon les spécifications. Aucun dosage par défaut.")
+        NumberField(if (isArabic) "الإسمنت (كغ / م³)" else "Ciment (kg / m³)", cementDosageText) { cementDosageText = it }
+        NumberField(if (isArabic) "الرمل (م³ / م³)" else "Sable (m³ / m³)", sandDosageText) { sandDosageText = it }
+        NumberField(if (isArabic) "الحصى (م³ / م³)" else "Gravier (m³ / m³)", gravelDosageText) { gravelDosageText = it }
+        NumberField(if (isArabic) "نسبة الهدر (%)" else "Pertes (%)", wasteText) { wasteText = it }
+        if (materialResult != null) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(if (isArabic) "تقدير المواد حسب الجرعات المدخلة" else "Matériaux selon le dosage saisi", fontWeight = FontWeight.Bold)
+                    Text(if (isArabic) "الإسمنت: %.1f كغ".format(materialResult.cementKg) else "Ciment : %.1f kg".format(materialResult.cementKg))
+                    Text(if (isArabic) "الرمل: %.3f م³".format(materialResult.sandM3) else "Sable : %.3f m³".format(materialResult.sandM3))
+                    Text(if (isArabic) "الحصى: %.3f م³".format(materialResult.gravelM3) else "Gravier : %.3f m³".format(materialResult.gravelM3))
+                    Text(if (isArabic) "الحجم بعد الهدر: %.3f م³".format(materialResult.appliedVolumeM3) else "Volume avec pertes : %.3f m³".format(materialResult.appliedVolumeM3))
+                }
+            }
+        } else if (cementDosageText.isNotBlank() || sandDosageText.isNotBlank() || gravelDosageText.isNotBlank()) {
+            Text(if (isArabic) "تحقق من إدخال الجرعات الثلاث ونسبة الهدر ضمن المجال الصحيح." else "Vérifiez les trois dosages et le pourcentage de pertes.")
+        }
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
