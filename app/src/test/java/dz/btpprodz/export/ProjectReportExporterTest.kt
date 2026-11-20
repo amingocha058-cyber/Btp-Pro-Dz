@@ -4,9 +4,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipInputStream
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 
 class ProjectReportExporterTest {
@@ -27,9 +25,9 @@ class ProjectReportExporterTest {
         assertTrue(entries.containsKey("[Content_Types].xml"))
         assertTrue(entries.containsKey("xl/workbook.xml"))
         assertTrue(entries.containsKey("xl/worksheets/sheet1.xml"))
-        val workbook = entries["xl/workbook.xml"] ?: fail("Missing workbook")
+        val workbook = entries.getValue("xl/workbook.xml")
         assertTrue(workbook.contains("Villa &amp; Client"))
-        val sheet = entries["xl/worksheets/sheet1.xml"] ?: fail("Missing sheet")
+        val sheet = entries.getValue("xl/worksheets/sheet1.xml")
         assertTrue(sheet.contains("Concrete &lt;C25&gt;"))
         assertTrue(sheet.contains("<v>2.5</v>"))
         assertTrue(sheet.contains("<v>12000.0</v>"))
