@@ -1051,27 +1051,32 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                     if (rows.isEmpty()) {
                         devisMessage = if (isArabic) "لا يمكن إنشاء Devis فارغ. أضف تكاليف المواد أو اليد العاملة لهذا المشروع أولاً." else "Impossible de créer un devis vide. Ajoutez d’abord des coûts au projet."
                     } else {
-                        val materialTotal = materialLines.sumOf { it.totalCost }
-                        val laborTotal = laborLines.sumOf { it.totalCost }
-                        val tva = dao.getSetting("tva_percent")?.value?.toBigDecimalOrNull() ?: BigDecimal("19")
+                        val storedTva = dao.getSetting("tva_percent")?.value
                         val totals = runCatching {
-                            materialLines.forEach { line ->
-                                require(line.quantity.isFinite() && line.quantity > 0.0 &&
-                                    line.unitPriceSnapshot.isFinite() && line.unitPriceSnapshot >= 0.0 &&
-                                    line.totalCost.isFinite() && line.totalCost >= 0.0
-                                ) { "Invalid material quote line values." }
+                            val tva = storedTva?.toBigDecimalOrNull()
+                                ?: throw IllegalArgumentException("TVA rate is missing or invalid.")
+                            fun checkedLineTotal(quantity: Double, unitPrice: Double, storedTotal: Double): BigDecimal {
+                                require(quantity.isFinite() && quantity > 0.0 &&
+                                    unitPrice.isFinite() && unitPrice >= 0.0 &&
+                                    storedTotal.isFinite() && storedTotal >= 0.0
+                                ) { "Invalid quote line values." }
+                                val expected = BigDecimal.valueOf(quantity)
+                                    .multiply(BigDecimal.valueOf(unitPrice))
+                                    .setScale(2, java.math.RoundingMode.HALF_UP)
+                                val actual = BigDecimal.valueOf(storedTotal)
+                                    .setScale(2, java.math.RoundingMode.HALF_UP)
+                                require(expected.compareTo(actual) == 0) {
+                                    "Stored line total does not match quantity multiplied by unit price."
+                                }
+                                return actual
                             }
-                            laborLines.forEach { line ->
-                                require(line.quantity.isFinite() && line.quantity > 0.0 &&
-                                    line.unitPriceSnapshot.isFinite() && line.unitPriceSnapshot >= 0.0 &&
-                                    line.totalCost.isFinite() && line.totalCost >= 0.0
-                                ) { "Invalid labor quote line values." }
+                            val materialTotal = materialLines.fold(BigDecimal.ZERO) { sum, line ->
+                                sum.add(checkedLineTotal(line.quantity, line.unitPriceSnapshot, line.totalCost))
                             }
-                            DevisTotalsCalculator.calculate(
-                                BigDecimal.valueOf(materialTotal),
-                                BigDecimal.valueOf(laborTotal),
-                                tva
-                            )
+                            val laborTotal = laborLines.fold(BigDecimal.ZERO) { sum, line ->
+                                sum.add(checkedLineTotal(line.quantity, line.unitPriceSnapshot, line.totalCost))
+                            }
+                            DevisTotalsCalculator.calculate(materialTotal, laborTotal, tva)
                         }.getOrNull()
                         if (totals == null) {
                             devisMessage = if (isArabic) "تعذر إنشاء Devis: توجد كميات أو أسعار غير صالحة. راجع البنود ونسبة TVA." else "Devis impossible : quantités, prix ou TVA invalides."
