@@ -46,14 +46,14 @@ object ProjectReportExporter {
             chunks.forEachIndexed { index, chunk ->
                 val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, index + 1).create())
                 var y = 42f
-                page.canvas.drawText(title, left, y, paint.apply { textSize = 16f })
+                page.canvas.drawText(title.take(65), left, y, paint.apply { textSize = 16f })
                 paint.textSize = 9f
                 y += 32f
                 page.canvas.drawText("Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, y, paint)
                 y += lineHeight
                 chunk.forEach { row ->
-                    val label = row.description.take(38)
-                    val line = "$label | ${row.quantity} | ${row.unit.take(8)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
+                    val label = row.description.take(30)
+                    val line = "$label | ${row.quantity} | ${row.unit.take(6)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
                     page.canvas.drawText(line, left, y, paint)
                     y += lineHeight
                 }
@@ -77,7 +77,7 @@ object ProjectReportExporter {
             }
             entry("[Content_Types].xml", """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""")
             entry("_rels/.rels", """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""")
-            val workbookXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xml(title.take(31))}" sheetId="1" r:id="rId1"/></sheets></workbook>"""
+            val workbookXml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${excelSheetName(title)}" sheetId="1" r:id="rId1"/></sheets></workbook>"""
             entry("xl/workbook.xml", workbookXml)
             entry("xl/_rels/workbook.xml.rels", """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>""")
             val all = buildList {
@@ -99,6 +99,13 @@ object ProjectReportExporter {
             zip.finish()
         }
         output.flush()
+    }
+
+    internal fun excelSheetName(title: String): String {
+        val safe = title.replace(Regex("[\\\\/:?*\\[\\]]"), "_")
+            .trim().trim('\'')
+            .ifBlank { "Devis" }
+        return xml(safe.take(31))
     }
 
     private fun column(number: Int): String {
