@@ -414,7 +414,7 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
     val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val depth = depthText.toDoubleOrNull() ?: 0.0
+    val depth = depthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
     val dimensionsValid = length.isFinite() && length > 0.0 &&
@@ -505,8 +505,8 @@ private fun EarthworksCalculator(isArabic: Boolean, projectId: Long?) {
     val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val depth = depthText.toDoubleOrNull() ?: 0.0
-    val occupiedVolume = occupiedVolumeText.toBigDecimalOrNull()
+    val depth = depthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val occupiedVolume = occupiedVolumeText.replace(',', '.').toBigDecimalOrNull()
     val excavation = runCatching {
         EarthworkCalculator.rectangularExcavation(
             length.toBigDecimal(), width.toBigDecimal(), depth.toBigDecimal()
@@ -685,17 +685,17 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     var stairTreadText by remember(section) { mutableStateOf("0.30") }
     var stairRiserText by remember(section) { mutableStateOf("0.17") }
 
-    val count = countText.toDoubleOrNull() ?: 0.0
+    val count = countText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val unitPrice = unitPriceText.toDoubleOrNull() ?: 0.0
-    val openings = openingAreaText.toDoubleOrNull() ?: 0.0
-    val tileLength = tileLengthText.toDoubleOrNull() ?: 0.0
-    val tileWidth = tileWidthText.toDoubleOrNull() ?: 0.0
+    val unitPrice = unitPriceText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val openings = openingAreaText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val tileLength = tileLengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val tileWidth = tileWidthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairStepCount = stairStepCountText.toIntOrNull() ?: 0
-    val stairTread = stairTreadText.toDoubleOrNull() ?: 0.0
-    val stairRiser = stairRiserText.toDoubleOrNull() ?: 0.0
+    val stairTread = stairTreadText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val stairRiser = stairRiserText.replace(',', '.').toDoubleOrNull() ?: 0.0
 
     val isWall = section == "الجدران والبناء"
     val isRoof = section == "السقوف والبلاطات"
@@ -744,7 +744,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
         (isLabor || openings >= 0.0) &&
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
-        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish) || area >= 0.0) &&
+        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish || isFloor || isRoof || isStairs) || area >= 0.0) &&
+        (!(isRoof || isStairs) || volume >= 0.0) &&
         (!isStairs || (stairStepCount > 0 && stairTread > 0.0 && stairRiser > 0.0))
 
     val titleAr = section
