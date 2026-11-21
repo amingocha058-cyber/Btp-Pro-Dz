@@ -1,7 +1,6 @@
 package dz.btpprodz
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -16,15 +15,15 @@ class MainActivityUiTest {
     @Test
     fun homeScreenShowsConstructionSections() {
         composeRule.onNodeWithText("Btp Pro Dz").assertIsDisplayed()
-        composeRule.onNodeWithText("ماذا تريد أن تحسب؟").assertExists()
-        composeRule.onNodeWithText("الخرسانة").assertExists()
-        composeRule.onNodeWithText("الأساسات").assertExists()
+        composeRule.onNodeWithText("ماذا تريد أن تحسب؟").assertIsDisplayed()
+        composeRule.onNodeWithText("الخرسانة").assertIsDisplayed()
+        composeRule.onNodeWithText("الأساسات").assertIsDisplayed()
     }
 
     @Test
     fun concreteCalculatorOpensAndShowsCalculatedResult() {
         composeRule.onNodeWithText("الخرسانة").performClick()
-        composeRule.onNodeWithText("حساب عدد وحجم العناصر الخرسانية").assertExists()
+        composeRule.onNodeWithText("حساب عدد وحجم العناصر الخرسانية").assertIsDisplayed()
 
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
@@ -41,7 +40,7 @@ class MainActivityUiTest {
     @Test
     fun foundationCalculatorOpensAndShowsResultCard() {
         composeRule.onNodeWithText("الأساسات").performClick()
-        composeRule.onNodeWithText("حاسبة الأساسات").assertExists()
+        composeRule.onNodeWithText("حاسبة الأساسات").assertIsDisplayed()
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
@@ -52,10 +51,10 @@ class MainActivityUiTest {
     @Test
     fun userCanSwitchLanguageAndReturnToSections() {
         composeRule.onNodeWithText("FR").performClick()
-        composeRule.onNodeWithText("Calculs de construction et d’ingénierie").assertExists()
+        composeRule.onNodeWithText("Calculs de construction et d’ingénierie").assertIsDisplayed()
         composeRule.onNodeWithText("Béton").performClick()
-        composeRule.onNodeWithText("Retour aux rubriques").assertExists()
+        composeRule.onNodeWithText("Retour aux rubriques").assertIsDisplayed()
         composeRule.onNodeWithText("Retour aux rubriques").performClick()
-        composeRule.onNodeWithText("Que voulez-vous calculer ?").assertExists()
+        composeRule.onNodeWithText("Que voulez-vous calculer ?").assertIsDisplayed()
     }
 }
