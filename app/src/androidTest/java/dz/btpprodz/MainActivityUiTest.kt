@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import org.junit.Rule
 import org.junit.Test
 
@@ -57,4 +58,34 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("Retour aux rubriques").performClick()
         composeRule.onNodeWithText("Que voulez-vous calculer ?").assertIsDisplayed()
     }
+
+    @Test
+    fun earthworksExcavationDisplaysExpectedVolume() {
+        composeRule.onNodeWithText("الحفر والردم").performClick()
+        composeRule.onNodeWithText("حاسبة الحفر والردم").assertIsDisplayed()
+        val result = composeRule.onNodeWithText("الحجم الإجمالي: 50.000 م³", substring = true)
+        result.performScrollTo()
+        result.assertIsDisplayed()
+    }
+
+    @Test
+    fun earthworksResultUpdatesWhenDimensionChanges() {
+        composeRule.onNodeWithText("الحفر والردم").performClick()
+        val length = composeRule.onNodeWithText("الطول (م)")
+        length.performScrollTo()
+        length.performTextReplacement("12")
+        val result = composeRule.onNodeWithText("الحجم الإجمالي: 60.000 م³", substring = true)
+        result.performScrollTo()
+        result.assertIsDisplayed()
+    }
+
+    @Test
+    fun columnsAndBeamsDisplaysExpectedConcreteVolume() {
+        composeRule.onNodeWithText("الأعمدة والجسور").performClick()
+        composeRule.onNodeWithText("حاسبة الأعمدة والجسور").assertIsDisplayed()
+        val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
+        result.performScrollTo()
+        result.assertIsDisplayed()
+    }
+
 }
