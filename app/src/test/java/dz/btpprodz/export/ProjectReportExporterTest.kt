@@ -50,6 +50,12 @@ class ProjectReportExporterTest {
         assertTrue(foundSheet)
     }
 
+    @Test fun sanitizesExcelSheetNamesAndLimitsLength() {
+        assertEquals("Villa__Client", ProjectReportExporter.excelSheetName("Villa:/Client"))
+        assertEquals("Devis", ProjectReportExporter.excelSheetName("'''"))
+        assertEquals(31, ProjectReportExporter.excelSheetName("A".repeat(40)).length)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsBlankTitle() {
         ProjectReportExporter.writeExcel(" ", emptyList(), ByteArrayOutputStream())
