@@ -31,6 +31,14 @@ jobs:
       - name: Run unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
+      - name: Run Android Compose UI tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          script: gradle --no-daemon :app:connectedDebugAndroidTest
+
       - name: Build release APK (unsigned)
         run: gradle --no-daemon :app:assembleRelease
 
