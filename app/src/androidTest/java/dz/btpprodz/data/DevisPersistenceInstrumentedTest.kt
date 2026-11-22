@@ -1,7 +1,6 @@
 package dz.btpprodz.data
 
 import androidx.room.Room
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -10,8 +9,9 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
 
-@RunWith(AndroidJUnit4::class)
+@RunWith(JUnit4::class)
 class DevisPersistenceInstrumentedTest {
     private lateinit var database: BtpDatabase
     private lateinit var dao: AppDataDao
