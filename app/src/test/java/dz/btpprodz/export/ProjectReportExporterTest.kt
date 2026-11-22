@@ -125,4 +125,40 @@ class ProjectReportExporterTest {
         )
     }
 
+
+    @Test
+    fun acceptsZeroVatAndZeroValueLinesInFinancialSummary() {
+        val summary = ProjectReportSummary(
+            materialsLabel = "Materials HT",
+            materialsHt = 0.0,
+            laborLabel = "Labor HT",
+            laborHt = 0.0,
+            totalHtLabel = "Total HT",
+            totalHt = 0.0,
+            tvaLabel = "TVA",
+            tvaPercent = 0.0,
+            tvaAmount = 0.0,
+            totalTtcLabel = "Total TTC",
+            totalTtc = 0.0
+        )
+        assertEquals(0.0, summary.totalTtc, 0.0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsVatRateAboveOneHundredPercent() {
+        ProjectReportSummary(
+            materialsLabel = "Materials",
+            materialsHt = 100.0,
+            laborLabel = "Labor",
+            laborHt = 0.0,
+            totalHtLabel = "HT",
+            totalHt = 100.0,
+            tvaLabel = "TVA",
+            tvaPercent = 101.0,
+            tvaAmount = 101.0,
+            totalTtcLabel = "TTC",
+            totalTtc = 201.0
+        )
+    }
+
 }
