@@ -2,6 +2,11 @@ package dz.btpprodz.export
 
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
+import android.graphics.Canvas
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextDirectionHeuristics
+import android.text.TextPaint
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.util.zip.ZipEntry
@@ -77,15 +82,15 @@ object ProjectReportExporter {
             chunks.forEachIndexed { index, chunk ->
                 val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, index + 1).create())
                 var y = 42f
-                page.canvas.drawText(title.take(65), left, y, paint.apply { textSize = 16f })
+                drawBidiText(page.canvas, title.take(100), left, y, pageWidth - left * 2, paint.apply { textSize = 16f })
                 paint.textSize = 9f
                 y += 32f
-                page.canvas.drawText("Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, y, paint)
+                drawBidiText(page.canvas, "Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, y, pageWidth - left * 2, paint)
                 y += lineHeight
                 chunk.forEach { row ->
                     val label = row.description.take(30)
                     val line = "$label | ${row.quantity} | ${row.unit.take(6)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
-                    page.canvas.drawText(line, left, y, paint)
+                    drawBidiText(page.canvas, line, left, y, pageWidth - left * 2, paint)
                     y += lineHeight
                 }
                 page.canvas.drawText("Page ${index + 1} / ${chunks.size}", left, 820f, paint)
@@ -96,7 +101,7 @@ object ProjectReportExporter {
                 val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
                 var y = 54f
                 paint.textSize = 15f
-                page.canvas.drawText(title.take(65), left, y, paint)
+                drawBidiText(page.canvas, title.take(100), left, y, pageWidth - left * 2, paint)
                 paint.textSize = 11f
                 y += 42f
                 val summaryLines = listOf(
@@ -107,7 +112,7 @@ object ProjectReportExporter {
                     "${summary.totalTtcLabel}: ${"%.2f".format(java.util.Locale.US, summary.totalTtc)} DA"
                 )
                 summaryLines.forEach { line ->
-                    page.canvas.drawText(line.take(90), left, y, paint)
+                    drawBidiText(page.canvas, line, left, y, pageWidth - left * 2, paint)
                     y += 28f
                 }
                 page.canvas.drawText("Page $pageNumber / ${chunks.size + 1}", left, 820f, paint)
@@ -118,6 +123,21 @@ object ProjectReportExporter {
         } finally {
             document.close()
         }
+    }
+
+    private fun drawBidiText(canvas: Canvas, value: String, x: Float, top: Float, width: Int, sourcePaint: Paint): Int {
+        val textPaint = TextPaint(sourcePaint)
+        val layout = StaticLayout.Builder.obtain(value, 0, value.length, textPaint, width)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_RTL)
+            .setIncludePad(false)
+            .setMaxLines(2)
+            .build()
+        canvas.save()
+        canvas.translate(x, top)
+        layout.draw(canvas)
+        canvas.restore()
+        return layout.height
     }
 
     fun writeExcel(title: String, rows: List<ProjectReportRow>, output: OutputStream, summary: ProjectReportSummary? = null) {
@@ -155,7 +175,7 @@ object ProjectReportExporter {
                 }.joinToString("")
                 """<row r="${r + 1}">$cellsXml</row>"""
             }.joinToString("")
-            entry("xl/worksheets/sheet1.xml", """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>$sheetRows</sheetData></worksheet>""")
+            entry("xl/worksheets/sheet1.xml", """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews><cols><col min="1" max="1" width="38" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="3" width="12" customWidth="1"/><col min="4" max="5" width="20" customWidth="1"/></cols><sheetData>$sheetRows</sheetData></worksheet>""")
             zip.finish()
         }
         output.flush()
