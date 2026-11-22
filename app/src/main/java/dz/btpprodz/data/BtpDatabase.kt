@@ -15,6 +15,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
 import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "app_settings")
@@ -194,6 +195,13 @@ interface AppDataDao {
 
     @Insert
     suspend fun insertDevisLines(lines: List<DevisLineEntity>)
+
+    @Transaction
+    suspend fun insertDevisWithLines(document: DevisDocumentEntity, lines: List<DevisLineEntity>): Long {
+        val documentId = insertDevis(document)
+        insertDevisLines(lines.map { it.copy(devisId = documentId) })
+        return documentId
+    }
 
     @Query("SELECT * FROM devis_documents WHERE projectId = :projectId ORDER BY createdAt DESC")
     fun observeDevis(projectId: Long): Flow<List<DevisDocumentEntity>>
