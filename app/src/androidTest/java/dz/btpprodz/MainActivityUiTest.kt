@@ -61,7 +61,10 @@ class MainActivityUiTest {
 
     @Test
     fun earthworksExcavationDisplaysExpectedVolume() {
-        composeRule.onNodeWithText("الحفر والردم").performClick()
+        val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
+        earthworksSection.performScrollTo()
+        earthworksSection.assertIsDisplayed()
+        earthworksSection.performClick()
         composeRule.onNodeWithText("حاسبة الحفر والردم").assertIsDisplayed()
         val result = composeRule.onNodeWithText("الحجم الإجمالي: 50.000 م³", substring = true)
         result.performScrollTo()
@@ -70,7 +73,10 @@ class MainActivityUiTest {
 
     @Test
     fun earthworksResultUpdatesWhenDimensionChanges() {
-        composeRule.onNodeWithText("الحفر والردم").performClick()
+        val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
+        earthworksSection.performScrollTo()
+        earthworksSection.assertIsDisplayed()
+        earthworksSection.performClick()
         val length = composeRule.onNodeWithText("الطول (م)")
         length.performScrollTo()
         length.performTextReplacement("12")
