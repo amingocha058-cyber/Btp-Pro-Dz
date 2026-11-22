@@ -76,7 +76,7 @@ object ProjectReportExporter {
         val pageHeight = 842
         val left = 32f
         val lineHeight = 22f
-        val rowsPerPage = 24
+        val rowsPerPage = 12
         val chunks = rows.chunked(rowsPerPage).ifEmpty { listOf(emptyList()) }
         try {
             chunks.forEachIndexed { index, chunk ->
@@ -88,7 +88,7 @@ object ProjectReportExporter {
                 drawBidiText(page.canvas, "Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, y, pageWidth - left * 2, paint)
                 y += lineHeight
                 chunk.forEach { row ->
-                    val label = row.description.take(30)
+                    val label = row.description
                     val line = "$label | ${row.quantity} | ${row.unit.take(6)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
                     val renderedHeight = drawBidiText(page.canvas, line, left, y, pageWidth - left * 2, paint)
                     y += maxOf(lineHeight, renderedHeight + 6f)
@@ -131,7 +131,7 @@ object ProjectReportExporter {
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_RTL)
             .setIncludePad(false)
-            .setMaxLines(2)
+            .setMaxLines(5)
             .build()
         canvas.save()
         canvas.translate(x, top)
