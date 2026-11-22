@@ -40,6 +40,7 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
           script: gradle --no-daemon :app:connectedDebugAndroidTest
+          disable-linux-hw-accel: false
 
       - name: Upload Android UI test reports
         if: always()
