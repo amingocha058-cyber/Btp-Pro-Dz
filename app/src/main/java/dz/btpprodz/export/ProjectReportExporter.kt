@@ -125,9 +125,9 @@ object ProjectReportExporter {
         }
     }
 
-    private fun drawBidiText(canvas: Canvas, value: String, x: Float, top: Float, width: Int, sourcePaint: Paint): Int {
+    private fun drawBidiText(canvas: Canvas, value: String, x: Float, top: Float, width: Float, sourcePaint: Paint): Int {
         val textPaint = TextPaint(sourcePaint)
-        val layout = StaticLayout.Builder.obtain(value, 0, value.length, textPaint, width)
+        val layout = StaticLayout.Builder.obtain(value, 0, value.length, textPaint, width.toInt())
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_RTL)
             .setIncludePad(false)
