@@ -1,11 +1,13 @@
 package dz.btpprodz
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
 
@@ -19,6 +21,14 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("ماذا تريد أن تحسب؟").assertIsDisplayed()
         composeRule.onNodeWithText("الخرسانة").assertIsDisplayed()
         composeRule.onNodeWithText("الأساسات").assertIsDisplayed()
+    }
+
+    @Test
+    fun calculatorSearchFiltersConstructionSections() {
+        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").assertIsDisplayed()
+        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").performTextInput("الحفر")
+        composeRule.onNodeWithText("الحفر والردم").assertIsDisplayed()
+        composeRule.onNodeWithText("الخرسانة").assertDoesNotExist()
     }
 
     @Test
