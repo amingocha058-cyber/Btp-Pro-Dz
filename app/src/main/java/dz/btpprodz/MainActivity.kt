@@ -1234,8 +1234,14 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
-    val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" }
-        ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
+    val reportTitle = selectedDocument?.let { document ->
+        val client = document.clientNameSnapshot.takeIf { it.isNotBlank() }?.let {
+            (if (isArabic) "الزبون: " else "Client: ") + it + " - "
+        }.orEmpty()
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+            .format(java.util.Date(document.createdAt))
+        "${document.projectNameSnapshot} - ${client}${if (isArabic) "عرض سعر" else "Devis"} ${document.id} - $date"
+    } ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
         ?: "Btp Pro Dz"
     val reportSummary = selectedDocument?.let { document ->
         ProjectReportSummary(
