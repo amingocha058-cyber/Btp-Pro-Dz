@@ -1540,8 +1540,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                                                 dao.deleteDevisLine(line.id, line.devisId)
                                                 val document = dao.getDevisDocument(line.devisId) ?: return@withTransaction
                                                 val remaining = dao.getDevisLines(line.devisId)
-                                                val materialHt = remaining.filter { it.category == "MATERIAL" }.sumOf { it.total }
-                                                val laborHt = remaining.filter { it.category == "LABOR" }.sumOf { it.total }
+                                                val materialHt = java.math.BigDecimal.valueOf(remaining.filter { it.category == "MATERIAL" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
+                                                val laborHt = java.math.BigDecimal.valueOf(remaining.filter { it.category == "LABOR" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
                                                 val ht = java.math.BigDecimal.valueOf(materialHt).add(java.math.BigDecimal.valueOf(laborHt)).setScale(2, java.math.RoundingMode.HALF_UP)
                                                 val tva = ht.multiply(java.math.BigDecimal.valueOf(document.tvaPercent)).divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
                                                 dao.updateDevisDocument(document.copy(totalMaterials = materialHt, totalLabor = laborHt, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
@@ -1584,8 +1584,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                                     dao.updateDevisLine(line.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()))
                                     val document = dao.getDevisDocument(line.devisId) ?: error("Devis not found")
                                     val updatedLines = dao.getDevisLines(line.devisId).map { if (it.id == line.id) it.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()) else it }
-                                    val materials = updatedLines.filter { it.category == "MATERIAL" }.sumOf { it.total }
-                                    val labor = updatedLines.filter { it.category == "LABOR" }.sumOf { it.total }
+                                    val materials = BigDecimal.valueOf(updatedLines.filter { it.category == "MATERIAL" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
+                                    val labor = BigDecimal.valueOf(updatedLines.filter { it.category == "LABOR" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
                                     val ht = BigDecimal.valueOf(materials).add(BigDecimal.valueOf(labor)).setScale(2, java.math.RoundingMode.HALF_UP)
                                     val tva = ht.multiply(BigDecimal.valueOf(document.tvaPercent)).divide(BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
                                     dao.updateDevisDocument(document.copy(totalMaterials = materials, totalLabor = labor, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
