@@ -1,0 +1,107 @@
+package dz.btpprodz.data
+
+import androidx.room.Room
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class DevisPersistenceInstrumentedTest {
+    private lateinit var database: BtpDatabase
+    private lateinit var dao: AppDataDao
+
+    @Before
+    fun createDatabase() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        database = Room.inMemoryDatabaseBuilder(context, BtpDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        dao = database.appDataDao()
+    }
+
+    @After
+    fun closeDatabase() {
+        database.close()
+    }
+
+    @Test
+    fun savedDevisLinesCanBeEditedAndReadBack() = runBlocking {
+        val documentId = dao.insertDevis(
+            DevisDocumentEntity(
+                projectId = 1L,
+                projectNameSnapshot = "اختبار المشروع",
+                clientNameSnapshot = "الزبون",
+                totalMaterials = 200.0,
+                totalLabor = 0.0,
+                totalHt = 200.0,
+                tvaPercent = 19.0,
+                tvaAmount = 38.0,
+                totalTtc = 238.0
+            )
+        )
+        dao.insertDevisLines(
+            listOf(
+                DevisLineEntity(
+                    devisId = documentId,
+                    section = "الخرسانة",
+                    description = "خرسانة C25",
+                    quantity = 2.0,
+                    unit = "م³",
+                    unitPrice = 100.0,
+                    total = 200.0,
+                    category = "MATERIAL"
+                )
+            )
+        )
+
+        val saved = dao.getDevisLines(documentId).single()
+        dao.updateDevisLine(saved.copy(quantity = 3.0, total = 300.0))
+        val updated = dao.getDevisLines(documentId).single()
+
+        assertEquals(3.0, updated.quantity, 0.0)
+        assertEquals(300.0, updated.total, 0.0)
+    }
+
+    @Test
+    fun deletingDevisLinesAndDocumentRemovesPersistedRecords() = runBlocking {
+        val documentId = dao.insertDevis(
+            DevisDocumentEntity(
+                projectId = 2L,
+                projectNameSnapshot = "Project",
+                clientNameSnapshot = "",
+                totalMaterials = 50.0,
+                totalLabor = 0.0,
+                totalHt = 50.0,
+                tvaPercent = 0.0,
+                tvaAmount = 0.0,
+                totalTtc = 50.0
+            )
+        )
+        dao.insertDevisLines(
+            listOf(
+                DevisLineEntity(
+                    devisId = documentId,
+                    section = "Test",
+                    description = "Line",
+                    quantity = 1.0,
+                    unit = "u",
+                    unitPrice = 50.0,
+                    total = 50.0,
+                    category = "MATERIAL"
+                )
+            )
+        )
+
+        assertEquals(1, dao.deleteDevisLine(dao.getDevisLines(documentId).single().id, documentId))
+        assertEquals(0, dao.getDevisLines(documentId).size)
+        dao.deleteAllDevisLines(documentId)
+        assertEquals(1, dao.deleteDevisDocument(documentId))
+        assertNull(dao.getDevisDocument(documentId))
+    }
+}
