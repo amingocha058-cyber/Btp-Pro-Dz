@@ -104,4 +104,36 @@ class DevisPersistenceInstrumentedTest {
         assertEquals(1, dao.deleteDevisDocument(documentId))
         assertNull(dao.getDevisDocument(documentId))
     }
+
+    @Test
+    fun updatedDocumentFinancialSnapshotIsPersisted() = runBlocking {
+        val documentId = dao.insertDevis(
+            DevisDocumentEntity(
+                projectId = 3L,
+                projectNameSnapshot = "Project totals",
+                clientNameSnapshot = "",
+                totalMaterials = 100.0,
+                totalLabor = 50.0,
+                totalHt = 150.0,
+                tvaPercent = 19.0,
+                tvaAmount = 28.5,
+                totalTtc = 178.5
+            )
+        )
+        val document = dao.getDevisDocument(documentId)!!
+        dao.updateDevisDocument(
+            document.copy(
+                totalMaterials = 200.0,
+                totalLabor = 75.0,
+                totalHt = 275.0,
+                tvaAmount = 52.25,
+                totalTtc = 327.25
+            )
+        )
+        val updated = dao.getDevisDocument(documentId)!!
+        assertEquals(275.0, updated.totalHt, 0.0)
+        assertEquals(52.25, updated.tvaAmount, 0.0)
+        assertEquals(327.25, updated.totalTtc, 0.0)
+    }
+
 }
