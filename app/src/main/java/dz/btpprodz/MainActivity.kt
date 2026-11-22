@@ -1193,7 +1193,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     }
     val materialCosts by allMaterialCostsFlow.collectAsState(initial = emptyList())
     val laborCosts by laborCostsFlow.collectAsState(initial = emptyList())
-    var showSavedResults by remember { mutableStateOf(false) }
+    var showSavedResults by remember { mutableStateOf(true) }
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
 
@@ -1204,15 +1204,22 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
     val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" } ?: "Btp Pro Dz"
-    val reportRows = remember(selectedLines, selectedDocument, isArabic) {
+    val reportRows = remember(selectedLines, selectedDocument, materialCosts, laborCosts, selectedProject, isArabic) {
         buildList {
-            selectedLines.forEach { line ->
-                add(ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total))
-            }
-            selectedDocument?.let { document ->
-                add(ProjectReportRow(if (isArabic) "المجموع HT" else "Total HT", 1.0, "DA", document.totalHt, document.totalHt))
-                add(ProjectReportRow(if (isArabic) "TVA ${document.tvaPercent}%" else "TVA ${document.tvaPercent}%", 1.0, "DA", document.tvaAmount, document.tvaAmount))
-                add(ProjectReportRow(if (isArabic) "المجموع TTC" else "Total TTC", 1.0, "DA", document.totalTtc, document.totalTtc))
+            if (selectedDocument != null) {
+                selectedLines.forEach { line ->
+                    add(ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total))
+                }
+                add(ProjectReportRow(if (isArabic) "المجموع HT" else "Total HT", 1.0, "DA", selectedDocument.totalHt, selectedDocument.totalHt))
+                add(ProjectReportRow(if (isArabic) "TVA ${selectedDocument.tvaPercent}%" else "TVA ${selectedDocument.tvaPercent}%", 1.0, "DA", selectedDocument.tvaAmount, selectedDocument.tvaAmount))
+                add(ProjectReportRow(if (isArabic) "المجموع TTC" else "Total TTC", 1.0, "DA", selectedDocument.totalTtc, selectedDocument.totalTtc))
+            } else {
+                materialCosts.forEach { line ->
+                    add(ProjectReportRow("${line.section} — ${line.materialName}", line.quantity, line.unit, line.unitPriceSnapshot, line.totalCost))
+                }
+                laborCosts.forEach { line ->
+                    add(ProjectReportRow("${line.section} — ${line.tradeName}", line.quantity, line.unit, line.unitPriceSnapshot, line.totalCost))
+                }
             }
         }
     }
@@ -1257,13 +1264,22 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
         }, enabled = projectName.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
             Text(if (isArabic) "إنشاء مشروع" else "Créer le projet")
         }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(if (isArabic) "كيف تستخدم Devis؟" else "Comment utiliser le devis ?", fontWeight = FontWeight.Bold)
+                Text(if (isArabic) "١. أنشئ مشروعاً واختره. ٢. أضف كميات وأسعار المواد أو اليد العاملة من أقسام الأشغال. ٣. راجع النتائج المحفوظة هنا. ٤. أنشئ الوثيقة ثم صدّر PDF أو Excel." else "1. Créez et sélectionnez un projet. 2. Ajoutez quantités et prix dans les rubriques. 3. Vérifiez les résultats enregistrés ici. 4. Créez le devis puis exportez en PDF ou Excel.")
+            }
+        }
         Divider()
         Text(if (isArabic) "قائمة المشاريع" else "Liste des projets", fontWeight = FontWeight.SemiBold)
         if (projects.isEmpty()) Text(if (isArabic) "لا توجد مشاريع بعد." else "Aucun projet pour le moment.")
         projects.forEach { project ->
             val label = project.name + if (project.clientName.isNotBlank()) " — " + project.clientName else ""
             if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; selectedDevisId = null; devisMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
-            else OutlinedButton(onClick = { selectedProjectId = project.id; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            else OutlinedButton(onClick = { selectedProjectId = project.id; showSavedResults = true; selectedDevisId = null; devisMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
         }
         if (selectedProject != null) {
             Divider()
@@ -1318,6 +1334,18 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             }
                             Divider()
                         }
+                        if (materialCosts.isNotEmpty() || laborCosts.isNotEmpty()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { pdfLauncher.launch("BtpProDz_Resultats.pdf") }, modifier = Modifier.weight(1f)) {
+                                    Text(if (isArabic) "PDF للنتائج" else "Résultats PDF")
+                                }
+                                OutlinedButton(onClick = { excelLauncher.launch("BtpProDz_Resultats.xlsx") }, modifier = Modifier.weight(1f)) {
+                                    Text(if (isArabic) "Excel للنتائج" else "Résultats Excel")
+                                }
+                            }
+                            Text(if (isArabic) "يمكنك حفظ النتائج مباشرة، أو إنشاء وثيقة Devis رسمية لاحقاً." else "Vous pouvez exporter ces résultats directement ou créer un devis officiel ensuite.", style = MaterialTheme.typography.bodySmall)
+                        }
+                        exportMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                         Text(
                             if (materialCosts.isEmpty() && laborCosts.isEmpty()) {
                                 if (isArabic) "لا توجد نتائج محفوظة لهذا المشروع بعد. افتح قسم الأشغال، اختر المشروع الحالي، ثم احفظ تكلفة المواد أو اليد العاملة."
