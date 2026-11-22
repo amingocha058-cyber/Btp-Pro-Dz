@@ -46,6 +46,7 @@ class DevisPersistenceInstrumentedTest {
             ),
             lines = listOf(
                 DevisLineEntity(
+                    devisId = 0L, // Replaced atomically with the newly inserted document ID.
                     section = "الخرسانة",
                     description = "خرسانة C25",
                     quantity = 2.0,
