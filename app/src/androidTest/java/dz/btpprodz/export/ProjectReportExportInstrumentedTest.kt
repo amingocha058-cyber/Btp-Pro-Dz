@@ -40,6 +40,32 @@ class ProjectReportExportInstrumentedTest {
     }
 
     @Test
+    fun paginatesLongDevisAndCountsFinancialSummaryPage() {
+        val output = ByteArrayOutputStream()
+        val rows = (1..40).map { index ->
+            ProjectReportRow("بند أشغال رقم $index", 1.0, "وحدة", 10.0, 10.0)
+        }
+        val summary = ProjectReportSummary(
+            materialsLabel = "مجموع المواد HT",
+            materialsHt = 400.0,
+            laborLabel = "مجموع اليد العاملة HT",
+            laborHt = 0.0,
+            totalHtLabel = "المجموع HT",
+            totalHt = 400.0,
+            tvaLabel = "TVA",
+            tvaPercent = 19.0,
+            tvaAmount = 76.0,
+            totalTtcLabel = "المجموع TTC",
+            totalTtc = 476.0
+        )
+
+        ProjectReportExporter.writePdf("عرض سعر متعدد الصفحات", rows, output, summary)
+
+        val pdf = output.toByteArray().toString(Charsets.ISO_8859_1)
+        assertTrue("PDF should contain a three-page page tree (two detail pages plus summary)", Regex("/Count\\s+3\\b").containsMatchIn(pdf))
+    }
+
+    @Test
     fun createsReadableRtlXlsxPackageOnAndroidRuntime() {
         val output = ByteArrayOutputStream()
         ProjectReportExporter.writeExcel(
