@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.waitUntil
 import org.junit.Rule
 import org.junit.Test
 
@@ -149,9 +150,10 @@ class MainActivityUiTest {
     private fun openSection(section: String) {
         composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
             .performTextInput(section)
-        val sectionNode = composeRule.onNodeWithText(section)
-        sectionNode.assertIsDisplayed()
-        sectionNode.performClick()
+        val sectionNodes = composeRule.onAllNodesWithText(section)
+        composeRule.waitUntil(5_000) { sectionNodes.fetchSemanticsNodes().isNotEmpty() }
+        sectionNodes.onFirst().assertIsDisplayed()
+        sectionNodes.onFirst().performClick()
         composeRule.onNodeWithText("النتائج التقديرية").performScrollTo().assertIsDisplayed()
     }
 
@@ -161,6 +163,10 @@ class MainActivityUiTest {
         val projectName = composeRule.onNodeWithText("اسم المشروع")
         projectName.performTextInput("اختبار Devis UI")
         composeRule.onNodeWithText("إنشاء مشروع").performScrollTo().performClick()
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithText("المشروع المحدد: اختبار Devis UI", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithText("المشروع المحدد: اختبار Devis UI", substring = true)
             .performScrollTo().assertIsDisplayed()
 
