@@ -1277,8 +1277,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                     if (showSavedResults) {
                         if (isArabic) "إخفاء النتائج المحفوظة" else "Masquer les résultats enregistrés"
                     } else {
-                        if (isArabic) "عرض النتائج المحفوظة (\${materialCosts.size + laborCosts.size})"
-                        else "Voir les résultats enregistrés (\${materialCosts.size + laborCosts.size})"
+                        if (isArabic) "عرض النتائج المحفوظة (${materialCosts.size + laborCosts.size})"
+                        else "Voir les résultats enregistrés (${materialCosts.size + laborCosts.size})"
                     }
                 )
             }
@@ -1297,24 +1297,24 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            if (isArabic) "المواد: \${materialCosts.size} بند — \${"%.2f".format(materialCosts.sumOf { it.totalCost })} دج"
-                            else "Matériaux : \${materialCosts.size} lignes — \${"%.2f".format(materialCosts.sumOf { it.totalCost })} DA"
+                            if (isArabic) "المواد: ${materialCosts.size} بند — ${"%.2f".format(materialCosts.sumOf { it.totalCost })} دج"
+                            else "Matériaux : ${materialCosts.size} lignes — ${"%.2f".format(materialCosts.sumOf { it.totalCost })} DA"
                         )
                         materialCosts.forEach { line ->
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("\${line.section} — \${line.materialName}", fontWeight = FontWeight.SemiBold)
-                                Text("\${line.quantity} \${line.unit} × \${"%.2f".format(line.unitPriceSnapshot)} = \${"%.2f".format(line.totalCost)} DA")
+                                Text("${line.section} — ${line.materialName}", fontWeight = FontWeight.SemiBold)
+                                Text("${line.quantity} ${line.unit} × ${"%.2f".format(line.unitPriceSnapshot)} = ${"%.2f".format(line.totalCost)} DA")
                             }
                             Divider()
                         }
                         Text(
-                            if (isArabic) "اليد العاملة: \${laborCosts.size} بند — \${"%.2f".format(laborCosts.sumOf { it.totalCost })} دج"
-                            else "Main-d’œuvre : \${laborCosts.size} lignes — \${"%.2f".format(laborCosts.sumOf { it.totalCost })} DA"
+                            if (isArabic) "اليد العاملة: ${laborCosts.size} بند — ${"%.2f".format(laborCosts.sumOf { it.totalCost })} دج"
+                            else "Main-d’œuvre : ${laborCosts.size} lignes — ${"%.2f".format(laborCosts.sumOf { it.totalCost })} DA"
                         )
                         laborCosts.forEach { line ->
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("\${line.section} — \${line.tradeName}", fontWeight = FontWeight.SemiBold)
-                                Text("\${line.quantity} \${line.unit} × \${"%.2f".format(line.unitPriceSnapshot)} = \${"%.2f".format(line.totalCost)} DA")
+                                Text("${line.section} — ${line.tradeName}", fontWeight = FontWeight.SemiBold)
+                                Text("${line.quantity} ${line.unit} × ${"%.2f".format(line.unitPriceSnapshot)} = ${"%.2f".format(line.totalCost)} DA")
                             }
                             Divider()
                         }
