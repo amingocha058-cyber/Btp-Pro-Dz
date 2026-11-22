@@ -72,8 +72,11 @@ class MainActivityUiTest {
 
     @Test
     fun earthworksExcavationDisplaysExpectedVolume() {
+        // The section is below the initial LazyColumn viewport; filter it into the
+        // composed list before locating and opening it.
+        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+            .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
-        earthworksSection.performScrollTo()
         earthworksSection.assertIsDisplayed()
         earthworksSection.performClick()
         composeRule.onNodeWithText("حاسبة الحفر والردم").assertIsDisplayed()
@@ -84,8 +87,10 @@ class MainActivityUiTest {
 
     @Test
     fun earthworksResultUpdatesWhenDimensionChanges() {
+        // Search first so LazyColumn composes the off-screen section.
+        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+            .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
-        earthworksSection.performScrollTo()
         earthworksSection.assertIsDisplayed()
         earthworksSection.performClick()
         val length = composeRule.onNodeWithText("الطول (م)")
