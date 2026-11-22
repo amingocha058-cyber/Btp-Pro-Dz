@@ -1461,8 +1461,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         if (totals == null) {
                             devisMessage = if (isArabic) "تعذر إنشاء Devis: توجد كميات أو أسعار غير صالحة. راجع البنود ونسبة TVA." else "Devis impossible : quantités, prix ou TVA invalides."
                         } else {
-                            val documentId = dao.insertDevis(
-                                DevisDocumentEntity(
+                            val documentId = dao.insertDevisWithLines(
+                                document = DevisDocumentEntity(
                                     projectId = selectedProject.id,
                                     projectNameSnapshot = selectedProject.name,
                                     clientNameSnapshot = selectedProject.clientName,
@@ -1472,9 +1472,9 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                                     tvaPercent = totals.tvaPercent.toDouble(),
                                     tvaAmount = totals.tvaAmount.toDouble(),
                                     totalTtc = totals.totalTtc.toDouble()
-                                )
+                                ),
+                                lines = rows
                             )
-                            dao.insertDevisLines(rows.map { it.copy(devisId = documentId) })
                             selectedDevisId = documentId
                             devisMessage = if (isArabic) "تم إنشاء وثيقة Devis وحفظ تفاصيلها." else "Le devis et ses lignes ont été enregistrés."
                         }
