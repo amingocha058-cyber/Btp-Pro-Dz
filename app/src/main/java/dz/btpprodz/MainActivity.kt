@@ -1185,6 +1185,15 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
         selectedProjectId?.let { dao.observeDevis(it) } ?: flowOf(emptyList())
     }
     val devisList by devisFlow.collectAsState(initial = emptyList())
+    val allMaterialCostsFlow = remember(selectedProjectId) {
+        selectedProjectId?.let { dao.observeAllCalculationCostsForProject(it) } ?: flowOf(emptyList())
+    }
+    val laborCostsFlow = remember(selectedProjectId) {
+        selectedProjectId?.let { dao.observeAllLaborCostsForProject(it) } ?: flowOf(emptyList())
+    }
+    val materialCosts by allMaterialCostsFlow.collectAsState(initial = emptyList())
+    val laborCosts by laborCostsFlow.collectAsState(initial = emptyList())
+    var showSavedResults by remember { mutableStateOf(false) }
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
 
@@ -1260,6 +1269,68 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             Divider()
             Text(if (isArabic) "المشروع المحدد: " + selectedProject.name else "Projet sélectionné : " + selectedProject.name, fontWeight = FontWeight.Bold)
             Text(if (isArabic) "اختر المشروع أولاً من هذه القائمة، ثم أضف تكاليف المواد واليد العاملة من أقسام الأشغال. لن تُنقل البنود القديمة غير المرتبطة تلقائياً حتى لا تختلط تكاليف المشاريع." else "Sélectionnez d’abord ce projet, puis ajoutez les coûts depuis les rubriques. Les anciennes lignes non associées ne sont pas déplacées automatiquement afin d’éviter tout mélange.")
+            OutlinedButton(
+                onClick = { showSavedResults = !showSavedResults },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (showSavedResults) {
+                        if (isArabic) "إخفاء النتائج المحفوظة" else "Masquer les résultats enregistrés"
+                    } else {
+                        if (isArabic) "عرض النتائج المحفوظة (\${materialCosts.size + laborCosts.size})"
+                        else "Voir les résultats enregistrés (\${materialCosts.size + laborCosts.size})"
+                    }
+                )
+            }
+            if (showSavedResults) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            if (isArabic) "النتائج المحفوظة لهذا المشروع" else "Résultats enregistrés pour ce projet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            if (isArabic) "المواد: \${materialCosts.size} بند — \${"%.2f".format(materialCosts.sumOf { it.totalCost })} دج"
+                            else "Matériaux : \${materialCosts.size} lignes — \${"%.2f".format(materialCosts.sumOf { it.totalCost })} DA"
+                        )
+                        materialCosts.forEach { line ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("\${line.section} — \${line.materialName}", fontWeight = FontWeight.SemiBold)
+                                Text("\${line.quantity} \${line.unit} × \${"%.2f".format(line.unitPriceSnapshot)} = \${"%.2f".format(line.totalCost)} DA")
+                            }
+                            Divider()
+                        }
+                        Text(
+                            if (isArabic) "اليد العاملة: \${laborCosts.size} بند — \${"%.2f".format(laborCosts.sumOf { it.totalCost })} دج"
+                            else "Main-d’œuvre : \${laborCosts.size} lignes — \${"%.2f".format(laborCosts.sumOf { it.totalCost })} DA"
+                        )
+                        laborCosts.forEach { line ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("\${line.section} — \${line.tradeName}", fontWeight = FontWeight.SemiBold)
+                                Text("\${line.quantity} \${line.unit} × \${"%.2f".format(line.unitPriceSnapshot)} = \${"%.2f".format(line.totalCost)} DA")
+                            }
+                            Divider()
+                        }
+                        Text(
+                            if (materialCosts.isEmpty() && laborCosts.isEmpty()) {
+                                if (isArabic) "لا توجد نتائج محفوظة لهذا المشروع بعد. افتح قسم الأشغال، اختر المشروع الحالي، ثم احفظ تكلفة المواد أو اليد العاملة."
+                                else "Aucun résultat enregistré. Ouvrez une rubrique, sélectionnez ce projet, puis enregistrez un coût de matériau ou de main-d’œuvre."
+                            } else {
+                                if (isArabic) "هذه البنود هي التي ستُدرج عند إنشاء Devis." else "Ces lignes seront incluses lors de la création du devis."
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
             Button(onClick = {
                 scope.launch {
                     database.withTransaction {
