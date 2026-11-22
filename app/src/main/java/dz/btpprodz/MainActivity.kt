@@ -1232,15 +1232,28 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" }
         ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
         ?: "Btp Pro Dz"
+    val reportSummary = selectedDocument?.let { document ->
+        ProjectReportSummary(
+            materialsLabel = if (isArabic) "مجموع المواد HT" else "Matériaux HT",
+            materialsHt = document.totalMaterials,
+            laborLabel = if (isArabic) "مجموع اليد العاملة HT" else "Main-d’œuvre HT",
+            laborHt = document.totalLabor,
+            totalHtLabel = if (isArabic) "المجموع HT" else "Total HT",
+            totalHt = document.totalHt,
+            tvaLabel = "TVA",
+            tvaPercent = document.tvaPercent,
+            tvaAmount = document.tvaAmount,
+            totalTtcLabel = if (isArabic) "المجموع TTC" else "Total TTC",
+            totalTtc = document.totalTtc
+        )
+    }
     val reportRows = remember(selectedLines, selectedDocument, materialCosts, laborCosts, selectedProject, isArabic) {
         buildList {
             if (selectedDocument != null) {
                 selectedLines.forEach { line ->
                     add(ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total))
                 }
-                add(ProjectReportRow(if (isArabic) "المجموع HT" else "Total HT", 1.0, "DA", selectedDocument.totalHt, selectedDocument.totalHt))
-                add(ProjectReportRow(if (isArabic) "TVA ${selectedDocument.tvaPercent}%" else "TVA ${selectedDocument.tvaPercent}%", 1.0, "DA", selectedDocument.tvaAmount, selectedDocument.tvaAmount))
-                add(ProjectReportRow(if (isArabic) "المجموع TTC" else "Total TTC", 1.0, "DA", selectedDocument.totalTtc, selectedDocument.totalTtc))
+
             } else {
                 materialCosts.forEach { line ->
                     add(ProjectReportRow("${line.section} — ${line.materialName}", line.quantity, line.unit, line.unitPriceSnapshot, line.totalCost))
@@ -1256,7 +1269,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             exportMessage = runCatching {
                 withContext(Dispatchers.IO) {
                     val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open PDF destination.")
-                    stream.use { ProjectReportExporter.writePdf(reportTitle, reportRows, it) }
+                    stream.use { ProjectReportExporter.writePdf(reportTitle, reportRows, it, reportSummary) }
                 }
                 if (isArabic) "تم حفظ PDF بنجاح." else "PDF export saved."
             }.getOrElse { (if (isArabic) "فشل تصدير PDF: " else "PDF export failed: ") + (it.message ?: "Unknown error") }
@@ -1267,7 +1280,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             exportMessage = runCatching {
                 withContext(Dispatchers.IO) {
                     val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open Excel destination.")
-                    stream.use { ProjectReportExporter.writeExcel(reportTitle, reportRows, it) }
+                    stream.use { ProjectReportExporter.writeExcel(reportTitle, reportRows, it, reportSummary) }
                 }
                 if (isArabic) "تم حفظ Excel بنجاح." else "Excel export saved."
             }.getOrElse { (if (isArabic) "فشل تصدير Excel: " else "Excel export failed: ") + (it.message ?: "Unknown error") }
