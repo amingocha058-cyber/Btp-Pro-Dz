@@ -32,8 +32,8 @@ class DevisPersistenceInstrumentedTest {
 
     @Test
     fun savedDevisLinesCanBeEditedAndReadBack() = runBlocking {
-        val documentId = dao.insertDevis(
-            DevisDocumentEntity(
+        val documentId = dao.insertDevisWithLines(
+            document = DevisDocumentEntity(
                 projectId = 1L,
                 projectNameSnapshot = "اختبار المشروع",
                 clientNameSnapshot = "الزبون",
@@ -43,12 +43,9 @@ class DevisPersistenceInstrumentedTest {
                 tvaPercent = 19.0,
                 tvaAmount = 38.0,
                 totalTtc = 238.0
-            )
-        )
-        dao.insertDevisLines(
-            listOf(
+            ),
+            lines = listOf(
                 DevisLineEntity(
-                    devisId = documentId,
                     section = "الخرسانة",
                     description = "خرسانة C25",
                     quantity = 2.0,
