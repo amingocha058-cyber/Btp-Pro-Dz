@@ -7,6 +7,37 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+
+/** Immutable financial summary attached to a saved Devis report. Values are Algerian dinars. */
+data class ProjectReportSummary(
+    val materialsLabel: String,
+    val materialsHt: Double,
+    val laborLabel: String,
+    val laborHt: Double,
+    val totalHtLabel: String,
+    val totalHt: Double,
+    val tvaLabel: String,
+    val tvaPercent: Double,
+    val tvaAmount: Double,
+    val totalTtcLabel: String,
+    val totalTtc: Double
+) {
+    init {
+        require(listOf(materialsLabel, laborLabel, totalHtLabel, tvaLabel, totalTtcLabel).all { it.isNotBlank() })
+        require(listOf(materialsHt, laborHt, totalHt, tvaPercent, tvaAmount, totalTtc).all { it.isFinite() })
+        require(materialsHt >= 0.0 && laborHt >= 0.0 && totalHt >= 0.0 && tvaAmount >= 0.0 && totalTtc >= 0.0)
+        require(tvaPercent in 0.0..100.0)
+        val expectedHt = java.math.BigDecimal.valueOf(materialsHt)
+            .add(java.math.BigDecimal.valueOf(laborHt)).setScale(2, java.math.RoundingMode.HALF_UP)
+        val expectedTax = expectedHt.multiply(java.math.BigDecimal.valueOf(tvaPercent))
+            .divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
+        val expectedTtc = expectedHt.add(expectedTax)
+        require(expectedHt.compareTo(java.math.BigDecimal.valueOf(totalHt).setScale(2, java.math.RoundingMode.HALF_UP)) == 0)
+        require(expectedTax.compareTo(java.math.BigDecimal.valueOf(tvaAmount).setScale(2, java.math.RoundingMode.HALF_UP)) == 0)
+        require(expectedTtc.compareTo(java.math.BigDecimal.valueOf(totalTtc).setScale(2, java.math.RoundingMode.HALF_UP)) == 0)
+    }
+}
+
 data class ProjectReportRow(
     val description: String,
     val quantity: Double,
@@ -32,7 +63,7 @@ data class ProjectReportRow(
 
 /** Exports the same immutable report rows to a paginated PDF or a standards-based XLSX workbook. */
 object ProjectReportExporter {
-    fun writePdf(title: String, rows: List<ProjectReportRow>, output: OutputStream) {
+    fun writePdf(title: String, rows: List<ProjectReportRow>, output: OutputStream, summary: ProjectReportSummary? = null) {
         require(title.isNotBlank()) { "Report title cannot be blank." }
         val document = PdfDocument()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f }
@@ -60,6 +91,28 @@ object ProjectReportExporter {
                 page.canvas.drawText("Page ${index + 1} / ${chunks.size}", left, 820f, paint)
                 document.finishPage(page)
             }
+            if (summary != null) {
+                val pageNumber = chunks.size + 1
+                val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                var y = 54f
+                paint.textSize = 15f
+                page.canvas.drawText(title.take(65), left, y, paint)
+                paint.textSize = 11f
+                y += 42f
+                val summaryLines = listOf(
+                    "${summary.materialsLabel}: ${"%.2f".format(java.util.Locale.US, summary.materialsHt)} DA",
+                    "${summary.laborLabel}: ${"%.2f".format(java.util.Locale.US, summary.laborHt)} DA",
+                    "${summary.totalHtLabel}: ${"%.2f".format(java.util.Locale.US, summary.totalHt)} DA",
+                    "${summary.tvaLabel} (${"%.2f".format(java.util.Locale.US, summary.tvaPercent)}%): ${"%.2f".format(java.util.Locale.US, summary.tvaAmount)} DA",
+                    "${summary.totalTtcLabel}: ${"%.2f".format(java.util.Locale.US, summary.totalTtc)} DA"
+                )
+                summaryLines.forEach { line ->
+                    page.canvas.drawText(line.take(90), left, y, paint)
+                    y += 28f
+                }
+                page.canvas.drawText("Page $pageNumber / ${chunks.size + 1}", left, 820f, paint)
+                document.finishPage(page)
+            }
             document.writeTo(output)
             output.flush()
         } finally {
@@ -67,7 +120,7 @@ object ProjectReportExporter {
         }
     }
 
-    fun writeExcel(title: String, rows: List<ProjectReportRow>, output: OutputStream) {
+    fun writeExcel(title: String, rows: List<ProjectReportRow>, output: OutputStream, summary: ProjectReportSummary? = null) {
         require(title.isNotBlank()) { "Report title cannot be blank." }
         ZipOutputStream(output, StandardCharsets.UTF_8).use { zip ->
             fun entry(name: String, xml: String) {
@@ -83,6 +136,13 @@ object ProjectReportExporter {
             val all = buildList {
                 add(listOf("Description", "Quantity", "Unit", "Unit price (DA)", "Total (DA)"))
                 rows.forEach { add(listOf(it.description, it.quantity.toString(), it.unit, it.unitPriceDa.toString(), it.totalDa.toString())) }
+                summary?.let {
+                    add(listOf(it.materialsLabel, "", "", "", it.materialsHt.toString()))
+                    add(listOf(it.laborLabel, "", "", "", it.laborHt.toString()))
+                    add(listOf(it.totalHtLabel, "", "", "", it.totalHt.toString()))
+                    add(listOf("${it.tvaLabel} (${it.tvaPercent}%)", "", "", "", it.tvaAmount.toString()))
+                    add(listOf(it.totalTtcLabel, "", "", "", it.totalTtc.toString()))
+                }
             }
             val sheetRows = all.mapIndexed { r, cells ->
                 val cellsXml = cells.mapIndexed { c, value ->
