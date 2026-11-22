@@ -75,35 +75,59 @@ object ProjectReportExporter {
         val pageWidth = 595
         val pageHeight = 842
         val left = 32f
+        val contentWidth = pageWidth - left * 2
         val lineHeight = 22f
-        val rowsPerPage = 12
-        val chunks = rows.chunked(rowsPerPage).ifEmpty { listOf(emptyList()) }
+        val firstRowY = 96f
+        val bottomLimit = 790f
+
+        // Paginate by measured text height, not by a fixed number of rows. This
+        // prevents long Arabic/French descriptions from pushing later rows off-page.
+        paint.textSize = 9f
+        val renderedRows = rows.map { row ->
+            val line = "${row.description} | ${row.quantity} | ${row.unit.take(6)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
+            line to maxOf(lineHeight, measureBidiText(line, contentWidth, paint) + 6f)
+        }
+        val pages = mutableListOf<List<String>>()
+        var pageRows = mutableListOf<String>()
+        var y = firstRowY
+        renderedRows.forEach { (line, height) ->
+            if (pageRows.isNotEmpty() && y + height > bottomLimit) {
+                pages += pageRows.toList()
+                pageRows = mutableListOf()
+                y = firstRowY
+            }
+            pageRows += line
+            y += height
+        }
+        if (pageRows.isNotEmpty() || pages.isEmpty()) pages += pageRows.toList()
+
+        val totalPages = pages.size + if (summary != null) 1 else 0
         try {
-            chunks.forEachIndexed { index, chunk ->
-                val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, index + 1).create())
-                var y = 42f
-                drawBidiText(page.canvas, title.take(100), left, y, pageWidth - left * 2, paint.apply { textSize = 16f })
+            pages.forEachIndexed { index, pageRowsForPage ->
+                val pageNumber = index + 1
+                val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                var rowY = 42f
+                paint.textSize = 16f
+                drawBidiText(page.canvas, title.take(100), left, rowY, contentWidth, paint)
                 paint.textSize = 9f
-                y += 32f
-                drawBidiText(page.canvas, "Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, y, pageWidth - left * 2, paint)
-                y += lineHeight
-                chunk.forEach { row ->
-                    val label = row.description
-                    val line = "$label | ${row.quantity} | ${row.unit.take(6)} | ${"%.2f".format(java.util.Locale.US, row.unitPriceDa)} | ${"%.2f".format(java.util.Locale.US, row.totalDa)}"
-                    val renderedHeight = drawBidiText(page.canvas, line, left, y, pageWidth - left * 2, paint)
-                    y += maxOf(lineHeight, renderedHeight + 6f)
+                rowY += 32f
+                drawBidiText(page.canvas, "Description | Quantity | Unit | Unit price (DA) | Total (DA)", left, rowY, contentWidth, paint)
+                rowY = firstRowY
+                pageRowsForPage.forEach { line ->
+                    val renderedHeight = drawBidiText(page.canvas, line, left, rowY, contentWidth, paint)
+                    rowY += maxOf(lineHeight, renderedHeight + 6f)
                 }
-                page.canvas.drawText("Page ${index + 1} / ${chunks.size}", left, 820f, paint)
+                page.canvas.drawText("Page $pageNumber / $totalPages", left, 820f, paint)
                 document.finishPage(page)
             }
             if (summary != null) {
-                val pageNumber = chunks.size + 1
+                val pageNumber = pages.size + 1
                 val page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
-                var y = 54f
+                var summaryY = 54f
                 paint.textSize = 15f
-                drawBidiText(page.canvas, title.take(100), left, y, pageWidth - left * 2, paint)
+                drawBidiText(page.canvas, title.take(100), left, summaryY, contentWidth, paint)
                 paint.textSize = 11f
-                y += 42f
+                summaryY += 42f
                 val summaryLines = listOf(
                     "${summary.materialsLabel}: ${"%.2f".format(java.util.Locale.US, summary.materialsHt)} DA",
                     "${summary.laborLabel}: ${"%.2f".format(java.util.Locale.US, summary.laborHt)} DA",
@@ -112,10 +136,10 @@ object ProjectReportExporter {
                     "${summary.totalTtcLabel}: ${"%.2f".format(java.util.Locale.US, summary.totalTtc)} DA"
                 )
                 summaryLines.forEach { line ->
-                    val renderedHeight = drawBidiText(page.canvas, line, left, y, pageWidth - left * 2, paint)
-                    y += maxOf(28f, renderedHeight + 6f)
+                    val renderedHeight = drawBidiText(page.canvas, line, left, summaryY, contentWidth, paint)
+                    summaryY += maxOf(28f, renderedHeight + 6f)
                 }
-                page.canvas.drawText("Page $pageNumber / ${chunks.size + 1}", left, 820f, paint)
+                page.canvas.drawText("Page $pageNumber / $totalPages", left, 820f, paint)
                 document.finishPage(page)
             }
             document.writeTo(output)
@@ -125,13 +149,22 @@ object ProjectReportExporter {
         }
     }
 
+    private fun measureBidiText(value: String, width: Float, sourcePaint: Paint): Int {
+        val textPaint = TextPaint(sourcePaint)
+        return StaticLayout.Builder.obtain(value, 0, value.length, textPaint, width.toInt())
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_RTL)
+            .setIncludePad(false)
+            .build()
+            .height
+    }
+
     private fun drawBidiText(canvas: Canvas, value: String, x: Float, top: Float, width: Float, sourcePaint: Paint): Int {
         val textPaint = TextPaint(sourcePaint)
         val layout = StaticLayout.Builder.obtain(value, 0, value.length, textPaint, width.toInt())
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_RTL)
             .setIncludePad(false)
-            .setMaxLines(5)
             .build()
         canvas.save()
         canvas.translate(x, top)
