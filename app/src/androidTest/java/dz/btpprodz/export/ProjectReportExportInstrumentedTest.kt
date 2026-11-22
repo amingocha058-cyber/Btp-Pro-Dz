@@ -27,7 +27,10 @@ class ProjectReportExportInstrumentedTest {
         )
         ProjectReportExporter.writePdf(
             "عرض سعر - مشروع تجريبي",
-            listOf(ProjectReportRow("خرسانة مسلحة", 2.0, "م³", 160.0, 320.0)),
+            listOf(
+                ProjectReportRow("خرسانة مسلحة", 2.0, "م³", 160.0, 320.0),
+                ProjectReportRow("وصف طويل لبند الخرسانة المسلحة مع النقل والضخ واليد العاملة ومستلزمات التنفيذ والتجهيزات الإضافية للمشروع", 1.0, "بند", 250.0, 250.0)
+            ),
             output,
             summary
         )
