@@ -14,6 +14,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "app_settings")
@@ -199,6 +200,24 @@ interface AppDataDao {
 
     @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
     fun observeDevisLines(devisId: Long): Flow<List<DevisLineEntity>>
+
+    @Query("SELECT * FROM devis_documents WHERE id = :devisId LIMIT 1")
+    suspend fun getDevisDocument(devisId: Long): DevisDocumentEntity?
+
+    @Update
+    suspend fun updateDevisLine(line: DevisLineEntity)
+
+    @Update
+    suspend fun updateDevisDocument(document: DevisDocumentEntity)
+
+    @Query("DELETE FROM devis_lines WHERE id = :lineId AND devisId = :devisId")
+    suspend fun deleteDevisLine(lineId: Long, devisId: Long): Int
+
+    @Query("DELETE FROM devis_lines WHERE devisId = :devisId")
+    suspend fun deleteAllDevisLines(devisId: Long)
+
+    @Query("DELETE FROM devis_documents WHERE id = :devisId")
+    suspend fun deleteDevisDocument(devisId: Long): Int
 
     @Query("SELECT * FROM calculation_costs WHERE projectId = :projectId ORDER BY section, recordedAt")
     suspend fun materialCostLinesForProject(projectId: Long): List<CalculationCostEntity>
