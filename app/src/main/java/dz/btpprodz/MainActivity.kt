@@ -1223,6 +1223,10 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     var showSavedResults by remember { mutableStateOf(true) }
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
+    var editingDevisLine by remember { mutableStateOf<DevisLineEntity?>(null) }
+    var editQuantityText by remember { mutableStateOf("") }
+    var editUnitPriceText by remember { mutableStateOf("") }
+    var pendingDeleteDevisId by remember { mutableStateOf<Long?>(null) }
 
     val selectedLinesFlow = remember(selectedDevisId) {
         selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
@@ -1486,8 +1490,13 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         Text("HT : " + "%.2f".format(doc.totalHt) + " DA")
                         Text("TVA (" + doc.tvaPercent + "%) : " + "%.2f".format(doc.tvaAmount) + " DA")
                         Text("TTC : " + "%.2f".format(doc.totalTtc) + " DA", fontWeight = FontWeight.Bold)
-                        OutlinedButton(onClick = { selectedDevisId = if (selectedDevisId == doc.id) null else doc.id }) {
-                            Text(if (selectedDevisId == doc.id) { if (isArabic) "إخفاء البنود" else "Masquer les lignes" } else { if (isArabic) "عرض تفاصيل البنود" else "Voir les lignes" })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { selectedDevisId = if (selectedDevisId == doc.id) null else doc.id }) {
+                                Text(if (selectedDevisId == doc.id) { if (isArabic) "إخفاء البنود" else "Masquer les lignes" } else { if (isArabic) "عرض تفاصيل البنود" else "Voir les lignes" })
+                            }
+                            OutlinedButton(onClick = { pendingDeleteDevisId = doc.id }) {
+                                Text(if (isArabic) "حذف الوثيقة" else "Supprimer")
+                            }
                         }
                     }
                 }
@@ -1512,10 +1521,103 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             Text((if (line.category == "LABOR") { if (isArabic) "اليد العاملة" else "Main-d’œuvre" } else { if (isArabic) "المواد" else "Matériaux" }) + " — " + line.section, fontWeight = FontWeight.SemiBold)
                             Text(line.description)
                             Text(line.quantity.toString() + " " + line.unit + " × " + "%.2f".format(line.unitPrice) + " = " + "%.2f".format(line.total) + " DA")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    editingDevisLine = line
+                                    editQuantityText = line.quantity.toString()
+                                    editUnitPriceText = line.unitPrice.toString()
+                                }) { Text(if (isArabic) "تعديل" else "Modifier") }
+                                OutlinedButton(onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            database.withTransaction {
+                                                dao.deleteDevisLine(line.id, line.devisId)
+                                                val document = dao.getDevisDocument(line.devisId) ?: return@withTransaction
+                                                val remaining = dao.observeDevisLines(line.devisId)
+                                                // Totals are recalculated from the current stored line snapshot below.
+                                                val materialHt = selectedLines.filter { it.id != line.id && it.category == "MATERIAL" }.sumOf { it.total }
+                                                val laborHt = selectedLines.filter { it.id != line.id && it.category == "LABOR" }.sumOf { it.total }
+                                                val ht = java.math.BigDecimal.valueOf(materialHt).add(java.math.BigDecimal.valueOf(laborHt)).setScale(2, java.math.RoundingMode.HALF_UP)
+                                                val tva = ht.multiply(java.math.BigDecimal.valueOf(document.tvaPercent)).divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
+                                                dao.updateDevisDocument(document.copy(totalMaterials = materialHt, totalLabor = laborHt, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
+                                            }
+                                        }.onFailure { devisMessage = (if (isArabic) "تعذر حذف البند: " else "Suppression impossible : ") + (it.message ?: "Erreur") }
+                                    }
+                                }) { Text(if (isArabic) "حذف" else "Supprimer") }
+                            }
                         }
                     }
                 }
             }
+        }
+        if (editingDevisLine != null) {
+            val line = editingDevisLine!!
+            val quantity = editQuantityText.replace(',', '.').toBigDecimalOrNull()
+            val unitPrice = editUnitPriceText.replace(',', '.').toBigDecimalOrNull()
+            val validEdit = quantity != null && unitPrice != null && quantity > BigDecimal.ZERO &&
+                unitPrice >= BigDecimal.ZERO && quantity.toDouble().isFinite() && unitPrice.toDouble().isFinite() &&
+                quantity.multiply(unitPrice).toDouble().isFinite()
+            AlertDialog(
+                onDismissRequest = { editingDevisLine = null },
+                title = { Text(if (isArabic) "تعديل بند Devis" else "Modifier la ligne") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(line.description)
+                        NumberField(if (isArabic) "الكمية" else "Quantité", editQuantityText) { editQuantityText = it }
+                        NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", editUnitPriceText) { editUnitPriceText = it }
+                        Text(if (isArabic) "المجموع الجديد: " else "Nouveau total : " + (quantity?.multiply(unitPrice ?: BigDecimal.ZERO)?.setScale(2, java.math.RoundingMode.HALF_UP)?.toPlainString() ?: "—"))
+                    }
+                },
+                confirmButton = {
+                    Button(enabled = validEdit, onClick = {
+                        val q = quantity!!
+                        val p = unitPrice!!
+                        val total = q.multiply(p).setScale(2, java.math.RoundingMode.HALF_UP)
+                        scope.launch {
+                            runCatching {
+                                database.withTransaction {
+                                    dao.updateDevisLine(line.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()))
+                                    val document = dao.getDevisDocument(line.devisId) ?: error("Devis not found")
+                                    val updatedLines = selectedLines.map { if (it.id == line.id) line.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()) else it }
+                                    val materials = updatedLines.filter { it.category == "MATERIAL" }.sumOf { it.total }
+                                    val labor = updatedLines.filter { it.category == "LABOR" }.sumOf { it.total }
+                                    val ht = BigDecimal.valueOf(materials).add(BigDecimal.valueOf(labor)).setScale(2, java.math.RoundingMode.HALF_UP)
+                                    val tva = ht.multiply(BigDecimal.valueOf(document.tvaPercent)).divide(BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
+                                    dao.updateDevisDocument(document.copy(totalMaterials = materials, totalLabor = labor, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
+                                }
+                            }.onSuccess {
+                                editingDevisLine = null
+                                devisMessage = if (isArabic) "تم تعديل البند وتحديث المجاميع." else "Ligne modifiée et totaux actualisés."
+                            }.onFailure { devisMessage = (if (isArabic) "تعذر التعديل: " else "Modification impossible : ") + (it.message ?: "Erreur") }
+                        }
+                    }) { Text(if (isArabic) "حفظ التعديل" else "Enregistrer") }
+                },
+                dismissButton = { OutlinedButton(onClick = { editingDevisLine = null }) { Text(if (isArabic) "إلغاء" else "Annuler") } }
+            )
+        }
+        pendingDeleteDevisId?.let { id ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteDevisId = null },
+                title = { Text(if (isArabic) "حذف وثيقة Devis؟" else "Supprimer ce devis ?") },
+                text = { Text(if (isArabic) "سيتم حذف الوثيقة وبنودها المحفوظة. لا يمكن التراجع عن هذا الإجراء." else "Le document et toutes ses lignes seront supprimés. Cette action est irréversible.") },
+                confirmButton = {
+                    Button(onClick = {
+                        scope.launch {
+                            runCatching {
+                                database.withTransaction {
+                                    dao.deleteAllDevisLines(id)
+                                    dao.deleteDevisDocument(id)
+                                }
+                            }.onSuccess {
+                                if (selectedDevisId == id) selectedDevisId = null
+                                pendingDeleteDevisId = null
+                                devisMessage = if (isArabic) "تم حذف وثيقة Devis." else "Devis supprimé."
+                            }.onFailure { devisMessage = (if (isArabic) "تعذر الحذف: " else "Suppression impossible : ") + (it.message ?: "Erreur") }
+                        }
+                    }) { Text(if (isArabic) "تأكيد الحذف" else "Confirmer") }
+                },
+                dismissButton = { OutlinedButton(onClick = { pendingDeleteDevisId = null }) { Text(if (isArabic) "إلغاء" else "Annuler") } }
+            )
         }
         Text(if (isArabic) "تُحفظ تفاصيل كل Devis بصورة مستقلة؛ التعديلات اللاحقة على أسعار المواد أو أجور العمال لا تغيّر الوثائق السابقة." else "Chaque devis conserve ses propres lignes ; les modifications ultérieures des tarifs ne changent pas les documents existants.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
