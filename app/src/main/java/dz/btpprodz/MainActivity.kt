@@ -1259,6 +1259,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                 selectedProjectId = id
                 selectedDevisId = null
                 devisMessage = null
+                exportMessage = null
+                showSavedResults = true
                 onProjectSelected(id)
                 projectName = ""
                 clientName = ""
@@ -1280,8 +1282,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
         if (projects.isEmpty()) Text(if (isArabic) "لا توجد مشاريع بعد." else "Aucun projet pour le moment.")
         projects.forEach { project ->
             val label = project.name + if (project.clientName.isNotBlank()) " — " + project.clientName else ""
-            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; selectedDevisId = null; devisMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
-            else OutlinedButton(onClick = { selectedProjectId = project.id; showSavedResults = true; selectedDevisId = null; devisMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            if (selectedProjectId == project.id) Button(onClick = { selectedProjectId = project.id; selectedDevisId = null; devisMessage = null; exportMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+            else OutlinedButton(onClick = { selectedProjectId = project.id; showSavedResults = true; selectedDevisId = null; devisMessage = null; exportMessage = null; onProjectSelected(project.id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
         }
         if (selectedProject != null) {
             Divider()
@@ -1329,6 +1331,24 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             if (isArabic) "اليد العاملة: ${laborCosts.size} بند — ${"%.2f".format(laborCosts.sumOf { it.totalCost })} دج"
                             else "Main-d’œuvre : ${laborCosts.size} lignes — ${"%.2f".format(laborCosts.sumOf { it.totalCost })} DA"
                         )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(if (isArabic) "الإجمالي المحفوظ للمشروع" else "Total enregistré du projet", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "%.2f".format(materialCosts.sumOf { it.totalCost } + laborCosts.sumOf { it.totalCost }) +
+                                        if (isArabic) " دج" else " DA",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    if (isArabic) "عدد البنود: ${materialCosts.size + laborCosts.size}" else "Nombre de lignes : ${materialCosts.size + laborCosts.size}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
                         laborCosts.forEach { line ->
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("${line.section} — ${line.tradeName}", fontWeight = FontWeight.SemiBold)
