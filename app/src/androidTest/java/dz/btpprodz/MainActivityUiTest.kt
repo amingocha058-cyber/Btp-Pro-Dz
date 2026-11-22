@@ -155,4 +155,21 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("النتائج التقديرية").performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun projectCreationAndEmptyDevisGuardWorkInUi() {
+        composeRule.onNodeWithText("المشاريع و Devis").performClick()
+        val projectName = composeRule.onNodeWithText("اسم المشروع")
+        projectName.performTextInput("اختبار Devis UI")
+        composeRule.onNodeWithText("إنشاء مشروع").performScrollTo().performClick()
+        composeRule.onNodeWithText("المشروع المحدد: اختبار Devis UI", substring = true)
+            .performScrollTo().assertIsDisplayed()
+
+        val createDevis = composeRule.onNodeWithText("إنشاء Devis من التكاليف المسجلة")
+        createDevis.performScrollTo().performClick()
+        composeRule.onNodeWithText("لا يمكن إنشاء Devis فارغ", substring = true)
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("لم تُنشأ وثائق لهذا المشروع بعد.")
+            .performScrollTo().assertIsDisplayed()
+    }
+
 }
