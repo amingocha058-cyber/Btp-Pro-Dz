@@ -113,6 +113,7 @@ private val constructionStages = listOf(
 private fun BtpProDzApp() {
     var isArabic by remember { mutableStateOf(true) }
     var selectedView by remember { mutableStateOf(0) }
+    var calculatorSearch by remember { mutableStateOf("") }
     var showConcreteCalculator by remember { mutableStateOf(false) }
     var showFoundationCalculator by remember { mutableStateOf(false) }
     var showEarthworksCalculator by remember { mutableStateOf(false) }
@@ -204,9 +205,34 @@ private fun BtpProDzApp() {
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+                if (selectedView == 0) {
+                    OutlinedTextField(
+                        value = calculatorSearch,
+                        onValueChange = { calculatorSearch = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(if (isArabic) "ابحث عن حاسبة أو نوع الأشغال" else "Rechercher un calcul ou un travail") },
+                        placeholder = { Text(if (isArabic) "مثال: خرسانة، حفر، طلاء..." else "Ex. béton, terrassement, peinture...") }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (selectedView == 0) {
-                        items(workSections) { section ->
+                        val query = calculatorSearch.trim()
+                        val filteredSections = workSections.filter { section ->
+                            query.isBlank() || listOf(section.ar, section.fr, section.descriptionAr, section.descriptionFr)
+                                .any { it.contains(query, ignoreCase = true) }
+                        }
+                        if (filteredSections.isEmpty()) {
+                            item {
+                                Text(
+                                    if (isArabic) "لا توجد حاسبة مطابقة. جرّب كلمة أخرى." else "Aucun calcul correspondant. Essayez un autre terme.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+                        items(filteredSections) { section ->
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     if (section.ar == "الخرسانة") showConcreteCalculator = true
