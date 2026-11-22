@@ -201,6 +201,9 @@ interface AppDataDao {
     @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
     fun observeDevisLines(devisId: Long): Flow<List<DevisLineEntity>>
 
+    @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
+    suspend fun getDevisLines(devisId: Long): List<DevisLineEntity>
+
     @Query("SELECT * FROM devis_documents WHERE id = :devisId LIMIT 1")
     suspend fun getDevisDocument(devisId: Long): DevisDocumentEntity?
 
