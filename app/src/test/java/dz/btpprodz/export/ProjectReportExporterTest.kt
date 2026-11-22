@@ -75,4 +75,54 @@ class ProjectReportExporterTest {
     fun acceptsRoundedLineTotalsAtTwoDecimalPlaces() {
         ProjectReportRow("Concrete", 1.0, "m3", 10.005, 10.01)
     }
+
+    @Test
+    fun includesCompleteFinancialSummaryInExcelExport() {
+        val output = ByteArrayOutputStream()
+        val summary = ProjectReportSummary(
+            materialsLabel = "مواد HT",
+            materialsHt = 320.0,
+            laborLabel = "يد عاملة HT",
+            laborHt = 150.0,
+            totalHtLabel = "المجموع HT",
+            totalHt = 470.0,
+            tvaLabel = "TVA",
+            tvaPercent = 19.0,
+            tvaAmount = 89.30,
+            totalTtcLabel = "المجموع TTC",
+            totalTtc = 559.30
+        )
+        ProjectReportExporter.writeExcel("Devis Test", emptyList(), output, summary)
+        val entries = mutableMapOf<String, String>()
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+        val sheet = entries.getValue("xl/worksheets/sheet1.xml")
+        assertTrue(sheet.contains("مواد HT"))
+        assertTrue(sheet.contains("يد عاملة HT"))
+        assertTrue(sheet.contains("المجموع HT"))
+        assertTrue(sheet.contains("89.3"))
+        assertTrue(sheet.contains("559.3"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsFinancialSummaryWithInconsistentTotals() {
+        ProjectReportSummary(
+            materialsLabel = "Materials",
+            materialsHt = 320.0,
+            laborLabel = "Labor",
+            laborHt = 150.0,
+            totalHtLabel = "HT",
+            totalHt = 471.0,
+            tvaLabel = "TVA",
+            tvaPercent = 19.0,
+            tvaAmount = 89.49,
+            totalTtcLabel = "TTC",
+            totalTtc = 560.49
+        )
+    }
+
 }
