@@ -34,6 +34,23 @@ class ProjectReportExporterTest {
         assertTrue(sheet.contains("<v>30000.0</v>"))
     }
 
+    @Test
+    fun configuresExcelWorksheetForRightToLeftArabicAndReadableColumns() {
+        val output = ByteArrayOutputStream()
+        ProjectReportExporter.writeExcel("عرض عربي", listOf(ProjectReportRow("خرسانة", 1.0, "م3", 100.0, 100.0)), output)
+        val entries = mutableMapOf<String, String>()
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+        val sheet = entries.getValue("xl/worksheets/sheet1.xml")
+        assertTrue(sheet.contains("rightToLeft=\"1\""))
+        assertTrue(sheet.contains("customWidth=\"1\""))
+        assertTrue(sheet.contains("خرسانة"))
+    }
+
     @Test fun supportsEmptyReportAndEscapesXmlCharacters() {
         val output = ByteArrayOutputStream()
         ProjectReportExporter.writeExcel("Empty", emptyList(), output)
