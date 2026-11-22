@@ -1,7 +1,8 @@
 package dz.btpprodz
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -28,7 +29,7 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").assertIsDisplayed()
         composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").performTextInput("الحفر")
         composeRule.onNodeWithText("الحفر والردم").assertIsDisplayed()
-        composeRule.onNodeWithText("الخرسانة").assertDoesNotExist()
+        composeRule.onAllNodesWithText("الخرسانة").assertCountEquals(0)
     }
 
     @Test
