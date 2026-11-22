@@ -110,4 +110,49 @@ class MainActivityUiTest {
         result.assertIsDisplayed()
     }
 
+    @Test
+    fun masonryCalculatorOpensAndShowsNetArea() {
+        openSection("الجدران والبناء")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun slabCalculatorOpensAndShowsConcreteVolume() {
+        openSection("السقوف والبلاطات")
+        composeRule.onNodeWithText("حجم الخرسانة:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun plasterAndPaintingCalculatorOpensAndShowsNetArea() {
+        openSection("التلبيس والطلاء")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun flooringCalculatorOpensAndShowsTileEstimate() {
+        openSection("الأرضيات والتبليط")
+        composeRule.onNodeWithText("عدد البلاطات النظري:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun stairsCalculatorOpensAndShowsConcreteVolume() {
+        openSection("السلالم")
+        composeRule.onNodeWithText("حجم خرسانة السلم التقديري:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun laborCalculatorOpensAndShowsCostEstimate() {
+        openSection("اليد العاملة")
+        composeRule.onNodeWithText("التكلفة الإجمالية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    private fun openSection(section: String) {
+        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+            .performTextInput(section)
+        val sectionNode = composeRule.onNodeWithText(section)
+        sectionNode.assertIsDisplayed()
+        sectionNode.performClick()
+        composeRule.onNodeWithText("النتائج التقديرية").performScrollTo().assertIsDisplayed()
+    }
+
 }
