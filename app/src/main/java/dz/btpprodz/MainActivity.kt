@@ -1203,7 +1203,9 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
-    val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" } ?: "Btp Pro Dz"
+    val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" }
+        ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
+        ?: "Btp Pro Dz"
     val reportRows = remember(selectedLines, selectedDocument, materialCosts, laborCosts, selectedProject, isArabic) {
         buildList {
             if (selectedDocument != null) {
