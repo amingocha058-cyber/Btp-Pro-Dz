@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.waitUntil
+import androidx.compose.ui.test.onFirst
 import org.junit.Rule
 import org.junit.Test
 
