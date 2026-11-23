@@ -19,17 +19,19 @@ class MainActivityUiTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun homeScreenShowsConstructionSections() {
+    fun homeScreenShowsFlatTwoColumnCalculatorGrid() {
         composeRule.onNodeWithText("Btp Pro Dz").assertIsDisplayed()
-        composeRule.onNodeWithText("ماذا تريد أن تحسب؟").assertIsDisplayed()
+        composeRule.onNodeWithText("اختر الحاسبة").assertIsDisplayed()
         composeRule.onNodeWithText("الخرسانة").assertIsDisplayed()
         composeRule.onNodeWithText("الأساسات").assertIsDisplayed()
+        composeRule.onAllNodesWithText("حسب الأشغال").assertCountEquals(0)
+        composeRule.onAllNodesWithText("مراحل البناء").assertCountEquals(0)
     }
 
     @Test
     fun calculatorSearchFiltersConstructionSections() {
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").assertIsDisplayed()
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").performTextInput("الحفر")
+        composeRule.onNodeWithText("ابحث عن حاسبة").assertIsDisplayed()
+        composeRule.onNodeWithText("ابحث عن حاسبة").performTextInput("الحفر")
         composeRule.onNodeWithText("الحفر والردم").assertIsDisplayed()
         composeRule.onAllNodesWithText("الخرسانة").assertCountEquals(0)
     }
@@ -67,16 +69,16 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("FR").performClick()
         composeRule.onNodeWithText("Calculs de construction et d’ingénierie").assertIsDisplayed()
         composeRule.onNodeWithText("Béton").performClick()
-        composeRule.onNodeWithText("Retour aux rubriques").assertIsDisplayed()
-        composeRule.onNodeWithText("Retour aux rubriques").performClick()
-        composeRule.onNodeWithText("Que voulez-vous calculer ?").assertIsDisplayed()
+        composeRule.onNodeWithText("Retour aux calculateurs").assertIsDisplayed()
+        composeRule.onNodeWithText("Retour aux calculateurs").performClick()
+        composeRule.onNodeWithText("Choisissez un calculateur").assertIsDisplayed()
     }
 
     @Test
     fun earthworksExcavationDisplaysExpectedVolume() {
         // The section is below the initial LazyColumn viewport; filter it into the
         // composed list before locating and opening it.
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+        composeRule.onNodeWithText("ابحث عن حاسبة")
             .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
         earthworksSection.assertIsDisplayed()
@@ -90,7 +92,7 @@ class MainActivityUiTest {
     @Test
     fun earthworksResultUpdatesWhenDimensionChanges() {
         // Search first so LazyColumn composes the off-screen section.
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+        composeRule.onNodeWithText("ابحث عن حاسبة")
             .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
         earthworksSection.assertIsDisplayed()
@@ -173,7 +175,7 @@ class MainActivityUiTest {
     }
 
     private fun openSection(section: String) {
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
+        composeRule.onNodeWithText("ابحث عن حاسبة")
             .performTextInput(section)
         val sectionCard = composeRule.onNodeWithTag("work-section-$section")
         sectionCard.assertIsDisplayed()
@@ -181,9 +183,9 @@ class MainActivityUiTest {
         sectionCard.performClick()
         // Wait for the calculator screen itself, not a shared results heading.
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("رجوع إلى الأقسام").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("رجوع إلى الحاسبات").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("رجوع إلى الأقسام").assertIsDisplayed()
+        composeRule.onNodeWithText("رجوع إلى الحاسبات").assertIsDisplayed()
     }
 
     @Test
