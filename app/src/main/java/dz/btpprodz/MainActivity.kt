@@ -713,6 +713,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     var widthText by remember(section) { mutableStateOf(if (section == "السلالم") "1.2" else "3") }
     var heightText by remember(section) { mutableStateOf(if (section == "السلالم" || section == "السقوف والبلاطات") "0.15" else "3") }
     var openingAreaText by remember(section) { mutableStateOf("0") }
+    var unitPriceText by remember(section) { mutableStateOf("0") }
     var tileLengthText by remember(section) { mutableStateOf("0.60") }
     var tileWidthText by remember(section) { mutableStateOf("0.60") }
     var stairStepCountText by remember(section) { mutableStateOf("10") }
@@ -725,6 +726,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val openings = openingAreaText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val unitPrice = unitPriceText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileLength = tileLengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileWidth = tileWidthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairStepCount = stairStepCountText.toIntOrNull() ?: 0
@@ -748,6 +750,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     // Approximate rebar mass: d² / 162 kg per metre, with diameter in mm.
     val steelWeightKg = count * length * (steelDiameterMm * steelDiameterMm / 162.0)
     val networkLengthM = count * length
+    val laborTotal = count * unitPrice
 
     val area = when {
         isFormwork -> formworkArea
@@ -783,8 +786,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         else -> 0.0
     }
     val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
-    val inputsFinite = listOf(count, length, width, height, openings, tileLength, tileWidth, stairTread, stairRiser, steelDiameterMm).all { it.isFinite() }
-    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && steelWeightKg.isFinite() && networkLengthM.isFinite()
+    val inputsFinite = listOf(count, length, width, height, openings, unitPrice, tileLength, tileWidth, stairTread, stairRiser, steelDiameterMm).all { it.isFinite() }
+    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && steelWeightKg.isFinite() && networkLengthM.isFinite() && laborTotal.isFinite()
     val integerCountRequired = !isLabor
     val valid = inputsFinite && outputsFinite && count > 0.0 &&
         (!integerCountRequired || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
@@ -793,7 +796,7 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
         (!isSteel || (length > 0.0 && steelDiameterMm > 0.0)) &&
         (!isNetworks || length > 0.0) &&
-        (!isLabor || true) &&
+        (!isLabor || unitPrice >= 0.0) &&
         (!(isWall || isFinish || isGeneralFinishes || isFloor || isRoof || isStairs || isFormwork) || area >= 0.0) &&
         (!(isRoof || isStairs) || volume >= 0.0) &&
         (!isStairs || (stairStepCount > 0 && stairTread > 0.0 && stairRiser > 0.0))
@@ -846,7 +849,8 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         ) { countText = it }
 
         if (isLabor) {
-            Text(if (isArabic) "أدخل تكلفة اليد العاملة من قسم أسعار المهن أدناه." else "Saisissez le tarif depuis la section des métiers ci-dessous.")
+            NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
+            NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
         } else {
             NumberField(if (isArabic) if (isSteel || isNetworks) "طول القضيب / المسار (م)" else if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
             if (isSteel) {
@@ -880,6 +884,10 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(if (isArabic) "النتائج التقديرية" else "Résultats estimatifs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 when {
+                    isLabor -> {
+                        Text(if (isArabic) "إجمالي وحدات العمل: ${if (valid) "%.2f".format(count) else "—"}" else "Total des unités : ${if (valid) "%.2f".format(count) else "—"}")
+                        Text(if (isArabic) "التكلفة الإجمالية: ${if (valid) "%.2f".format(laborTotal) else "—"} دج" else "Coût total : ${if (valid) "%.2f".format(laborTotal) else "—"} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
                     isSteel -> Text(if (isArabic) "وزن الحديد التقريبي: ${if (valid) "%.2f".format(steelWeightKg) else "—"} كغ" else "Poids estimé : ${if (valid) "%.2f".format(steelWeightKg) else "—"} kg", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     isNetworks -> Text(if (isArabic) "الطول الإجمالي للشبكة: ${if (valid) "%.2f".format(networkLengthM) else "—"} م" else "Longueur totale du réseau : ${if (valid) "%.2f".format(networkLengthM) else "—"} m", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     isFormwork -> Text(if (isArabic) "مساحة القوالب التقديرية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface estimée du coffrage : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
