@@ -104,6 +104,40 @@ class DevisPersistenceInstrumentedTest {
     }
 
     @Test
+    fun editingALineRecalculatesSavedDocumentTotalsFromAllLines() = runBlocking {
+        val documentId = dao.insertDevis(
+            DevisDocumentEntity(
+                projectId = 4L,
+                projectNameSnapshot = "Edit totals",
+                clientNameSnapshot = "",
+                totalMaterials = 200.0,
+                totalLabor = 50.0,
+                totalHt = 250.0,
+                tvaPercent = 19.0,
+                tvaAmount = 47.5,
+                totalTtc = 297.5
+            )
+        )
+        dao.insertDevisLines(
+            listOf(
+                DevisLineEntity(devisId = documentId, section = "القوالب", description = "خشب", quantity = 2.0, unit = "م²", unitPrice = 100.0, total = 200.0, category = "MATERIAL"),
+                DevisLineEntity(devisId = documentId, section = "اليد العاملة", description = "نجار", quantity = 1.0, unit = "يوم", unitPrice = 50.0, total = 50.0, category = "LABOR")
+            )
+        )
+
+        val materialLine = dao.getDevisLines(documentId).first { it.category == "MATERIAL" }
+        dao.updateDevisLine(materialLine.copy(quantity = 3.0, total = 300.0))
+        dao.recalculateDevisDocument(documentId)
+
+        val updated = dao.getDevisDocument(documentId)!!
+        assertEquals(300.0, updated.totalMaterials, 0.0)
+        assertEquals(50.0, updated.totalLabor, 0.0)
+        assertEquals(350.0, updated.totalHt, 0.0)
+        assertEquals(66.5, updated.tvaAmount, 0.0)
+        assertEquals(416.5, updated.totalTtc, 0.0)
+    }
+
+    @Test
     fun updatedDocumentFinancialSnapshotIsPersisted() = runBlocking {
         val documentId = dao.insertDevis(
             DevisDocumentEntity(
