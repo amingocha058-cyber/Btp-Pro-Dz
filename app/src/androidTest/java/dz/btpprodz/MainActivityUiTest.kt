@@ -58,7 +58,8 @@ class MainActivityUiTest {
     fun foundationCalculatorOpensAndShowsResultCard() {
         composeRule.onNodeWithText("قواعد منفردة").performClick()
         composeRule.onNodeWithText("حاسبة قواعد منفردة").assertIsDisplayed()
-        composeRule.onAllNodesWithText("نوع الأساس").assertCountEquals(1)
+        composeRule.onAllNodesWithText("قواعد شريطية").assertCountEquals(0)
+        composeRule.onAllNodesWithText("سملات / ميدات").assertCountEquals(0)
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
