@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -150,12 +151,11 @@ class MainActivityUiTest {
     private fun openSection(section: String) {
         composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
             .performTextInput(section)
-        val sectionNodes = composeRule.onAllNodesWithText(section)
-        composeRule.waitUntil(5_000) { sectionNodes.fetchSemanticsNodes().isNotEmpty() }
-        sectionNodes.onFirst().assertIsDisplayed()
-        sectionNodes.onFirst().performClick()
-        // Wait for the calculator screen itself. Not every calculator renders the
-        // shared "النتائج التقديرية" heading (some expose a specialized result card).
+        val sectionCard = composeRule.onNodeWithTag("work-section-$section")
+        sectionCard.assertIsDisplayed()
+        // Click the actual Card node rather than its child Text semantics node.
+        sectionCard.performClick()
+        // Wait for the calculator screen itself, not a shared results heading.
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithText("رجوع إلى الأقسام").fetchSemanticsNodes().isNotEmpty()
         }
