@@ -95,6 +95,10 @@ private val workSections = listOf(
     WorkSection("السقوف والبلاطات", "Planchers et dalles", "حساب البلاطات والكميات", "Calcul des dalles et quantités"),
     WorkSection("التلبيس والطلاء", "Enduit et peinture", "المساحات والمواد اللازمة", "Surfaces et matériaux nécessaires"),
     WorkSection("الأرضيات والتبليط", "Revêtements", "البلاط والسيراميك والرخام", "Carrelage, céramique et marbre"),
+    WorkSection("القوالب", "Coffrage", "حساب مساحة ألواح القوالب للعناصر الخرسانية", "Calcul des surfaces de coffrage des éléments en béton"),
+    WorkSection("الحديد", "Ferraillage", "تقدير وزن قضبان التسليح حسب القطر والطول والعدد", "Estimation du poids des barres selon diamètre, longueur et nombre"),
+    WorkSection("الشبكات", "Réseaux", "تقدير أطوال الأنابيب أو الكابلات حسب المسارات", "Estimation des longueurs de canalisations ou câbles"),
+    WorkSection("التشطيبات", "Finitions", "حساب مساحات التشطيبات وخصم الفتحات", "Calcul des surfaces de finition avec déduction des ouvertures"),
     WorkSection("الحفر والردم", "Terrassement", "حساب الحفر والردم", "Calcul des déblais et remblais"),
     WorkSection("السلالم", "Escaliers", "الأبعاد والكميات", "Dimensions et quantités"),
     WorkSection("اليد العاملة", "Main-d’œuvre", "حساب الأجور حسب نوع الأشغال", "Calcul des coûts par type de travaux")
@@ -708,34 +712,46 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     var lengthText by remember(section) { mutableStateOf("5") }
     var widthText by remember(section) { mutableStateOf(if (section == "السلالم") "1.2" else "3") }
     var heightText by remember(section) { mutableStateOf(if (section == "السلالم" || section == "السقوف والبلاطات") "0.15" else "3") }
-    var unitPriceText by remember(section) { mutableStateOf("0") }
     var openingAreaText by remember(section) { mutableStateOf("0") }
     var tileLengthText by remember(section) { mutableStateOf("0.60") }
     var tileWidthText by remember(section) { mutableStateOf("0.60") }
     var stairStepCountText by remember(section) { mutableStateOf("10") }
     var stairTreadText by remember(section) { mutableStateOf("0.30") }
     var stairRiserText by remember(section) { mutableStateOf("0.17") }
+    var steelDiameterText by remember(section) { mutableStateOf("12") }
 
     val count = countText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val unitPrice = unitPriceText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val openings = openingAreaText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileLength = tileLengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileWidth = tileWidthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairStepCount = stairStepCountText.toIntOrNull() ?: 0
     val stairTread = stairTreadText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairRiser = stairRiserText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val steelDiameterMm = steelDiameterText.replace(',', '.').toDoubleOrNull() ?: 0.0
 
     val isWall = section == "الجدران والبناء"
     val isRoof = section == "السقوف والبلاطات"
     val isFinish = section == "التلبيس والطلاء"
+    val isGeneralFinishes = section == "التشطيبات"
     val isFloor = section == "الأرضيات والتبليط"
     val isStairs = section == "السلالم"
     val isLabor = section == "اليد العاملة"
+    val isFormwork = section == "القوالب"
+    val isSteel = section == "الحديد"
+    val isNetworks = section == "الشبكات"
+
+    // Formwork estimate: four vertical faces of a rectangular column/element.
+    val formworkArea = count * 2.0 * (length + width) * height
+    // Approximate rebar mass: d² / 162 kg per metre, with diameter in mm.
+    val steelWeightKg = count * length * (steelDiameterMm * steelDiameterMm / 162.0)
+    val networkLengthM = count * length
+
     val area = when {
-        isWall || isFinish -> runCatching {
+        isFormwork -> formworkArea
+        isWall || isFinish || isGeneralFinishes -> runCatching {
             SurfaceAreaCalculator.netRectangularArea(
                 count = count.toInt(),
                 lengthM = BigDecimal.valueOf(length),
@@ -767,62 +783,96 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         else -> 0.0
     }
     val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
-    val laborTotal = if (isLabor && count >= 0 && unitPrice >= 0) count * unitPrice else 0.0
-    val inputsFinite = listOf(count, length, width, height, unitPrice, openings, tileLength, tileWidth, stairTread, stairRiser).all { it.isFinite() }
-    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && laborTotal.isFinite()
+    val inputsFinite = listOf(count, length, width, height, openings, tileLength, tileWidth, stairTread, stairRiser, steelDiameterMm).all { it.isFinite() }
+    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && steelWeightKg.isFinite() && networkLengthM.isFinite()
+    val integerCountRequired = !isLabor
     val valid = inputsFinite && outputsFinite && count > 0.0 &&
-        (isLabor || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
-        (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
-        (isLabor || openings >= 0.0) &&
+        (!integerCountRequired || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
+        (isLabor || isNetworks || isSteel || (length > 0.0 && width > 0.0 && height > 0.0)) &&
+        (isLabor || isNetworks || isSteel || openings >= 0.0) &&
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
-        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish || isFloor || isRoof || isStairs) || area >= 0.0) &&
+        (!isSteel || (length > 0.0 && steelDiameterMm > 0.0)) &&
+        (!isNetworks || length > 0.0) &&
+        (!isLabor || true) &&
+        (!(isWall || isFinish || isGeneralFinishes || isFloor || isRoof || isStairs || isFormwork) || area >= 0.0) &&
         (!(isRoof || isStairs) || volume >= 0.0) &&
         (!isStairs || (stairStepCount > 0 && stairTread > 0.0 && stairRiser > 0.0))
 
-    val titleAr = section
     val titleFr = when(section) {
         "الجدران والبناء" -> "Maçonnerie"
         "السقوف والبلاطات" -> "Planchers et dalles"
         "التلبيس والطلاء" -> "Enduit et peinture"
         "الأرضيات والتبليط" -> "Revêtements"
+        "القوالب" -> "Coffrage"
+        "الحديد" -> "Ferraillage"
+        "الشبكات" -> "Réseaux"
+        "التشطيبات" -> "Finitions"
         "السلالم" -> "Escaliers"
         else -> "Main-d’œuvre"
     }
 
     val calculatedQuantity = when {
         !valid -> 0.0
+        isSteel -> steelWeightKg
+        isNetworks -> networkLengthM
         isRoof || isStairs -> volume
-        isWall || isFinish || isFloor -> area
+        isWall || isFinish || isGeneralFinishes || isFloor || isFormwork -> area
         else -> 0.0
     }
-    val calculatedUnit = if (isRoof || isStairs) "م³" else "م²"
+    val calculatedUnit = when {
+        isSteel -> "كغ"
+        isNetworks -> "م"
+        isRoof || isStairs -> "م³"
+        else -> "م²"
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (isArabic) titleAr else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) section else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        NumberField(
+            if (isArabic) when {
+                isSteel -> "عدد قضبان الحديد"
+                isNetworks -> "عدد المسارات / الخطوط"
+                isFormwork -> "عدد العناصر"
+                isLabor -> "عدد وحدات العمل / الأيام / الساعات"
+                else -> "عدد العناصر / الغرف / المساحات"
+            } else when {
+                isSteel -> "Nombre de barres"
+                isNetworks -> "Nombre de parcours / lignes"
+                isFormwork -> "Nombre d’éléments"
+                isLabor -> "Nombre d’unités / jours / heures"
+                else -> "Nombre d’éléments / pièces / surfaces"
+            },
+            countText
+        ) { countText = it }
+
         if (isLabor) {
-            NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
-            NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
+            Text(if (isArabic) "أدخل تكلفة اليد العاملة من قسم أسعار المهن أدناه." else "Saisissez le tarif depuis la section des métiers ci-dessous.")
         } else {
-            NumberField(if (isArabic) "عدد العناصر / الغرف / المساحات" else "Nombre d’éléments / pièces / surfaces", countText) { countText = it }
-            NumberField(if (isArabic) if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
-            NumberField(if (isArabic) if (isWall || isFinish) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
-            if (isWall || isFinish) {
-                NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
-            } else if (!isStairs && !isRoof) {
-                NumberField(if (isArabic) "البعد الإضافي (م)" else "Dimension supplémentaire (m)", heightText) { heightText = it }
-            }
-            if (isStairs) {
-                NumberField(if (isArabic) "سماكة بطن السلم (م)" else "Épaisseur de paillasse (m)", heightText) { heightText = it }
-                NumberField(if (isArabic) "عدد الدرجات" else "Nombre de marches", stairStepCountText) { stairStepCountText = it }
-                NumberField(if (isArabic) "عمق الدرجة (م)" else "Giron (m)", stairTreadText) { stairTreadText = it }
-                NumberField(if (isArabic) "ارتفاع الدرجة (م)" else "Hauteur de marche (m)", stairRiserText) { stairRiserText = it }
-            }
-            if (isFloor) {
-                NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
-                NumberField(if (isArabic) "عرض البلاطة الواحدة (م)" else "Largeur d’un carreau (m)", tileWidthText) { tileWidthText = it }
-            }
-            if (isRoof) {
-                NumberField(if (isArabic) "السماكة (م)" else "Épaisseur (m)", heightText) { heightText = it }
+            NumberField(if (isArabic) if (isSteel || isNetworks) "طول القضيب / المسار (م)" else if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
+            if (isSteel) {
+                NumberField(if (isArabic) "قطر القضيب (مم)" else "Diamètre de la barre (mm)", steelDiameterText) { steelDiameterText = it }
+            } else if (isFormwork) {
+                NumberField(if (isArabic) "عرض المقطع (م)" else "Largeur de section (m)", widthText) { widthText = it }
+                NumberField(if (isArabic) "ارتفاع العنصر (م)" else "Hauteur de l’élément (m)", heightText) { heightText = it }
+            } else if (isNetworks) {
+                Text(if (isArabic) "أدخل الطول الإجمالي لكل مسار؛ نوع الشبكة يحدد في وصف بند التكلفة." else "Saisissez la longueur de chaque parcours ; précisez le type de réseau dans le coût.")
+            } else {
+                NumberField(if (isArabic) if (isWall || isFinish || isGeneralFinishes) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish || isGeneralFinishes) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
+                if (isWall || isFinish || isGeneralFinishes) {
+                    NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
+                }
+                if (isRoof || isStairs) {
+                    NumberField(if (isArabic) if (isRoof) "السماكة (م)" else "سماكة بطن السلم (م)" else if (isRoof) "Épaisseur (m)" else "Épaisseur de paillasse (m)", heightText) { heightText = it }
+                }
+                if (isStairs) {
+                    NumberField(if (isArabic) "عدد الدرجات" else "Nombre de marches", stairStepCountText) { stairStepCountText = it }
+                    NumberField(if (isArabic) "عمق الدرجة (م)" else "Giron (m)", stairTreadText) { stairTreadText = it }
+                    NumberField(if (isArabic) "ارتفاع الدرجة (م)" else "Hauteur de marche (m)", stairRiserText) { stairRiserText = it }
+                }
+                if (isFloor) {
+                    NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
+                    NumberField(if (isArabic) "عرض البلاطة الواحدة (م)" else "Largeur d’un carreau (m)", tileWidthText) { tileWidthText = it }
+                }
             }
         }
 
@@ -830,13 +880,10 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(if (isArabic) "النتائج التقديرية" else "Résultats estimatifs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 when {
-                    isLabor -> {
-                        Text(if (isArabic) "إجمالي وحدات العمل: ${if (valid) "%.2f".format(count) else "—"}" else "Total des unités : ${if (valid) "%.2f".format(count) else "—"}")
-                        Text(if (isArabic) "التكلفة الإجمالية: ${if (valid) "%.2f".format(laborTotal) else "—"} دج" else "Coût total : ${if (valid) "%.2f".format(laborTotal) else "—"} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
-                    isStairs -> {
-                        Text(if (isArabic) "حجم خرسانة السلم التقديري: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume estimé de béton de l’escalier : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
+                    isSteel -> Text(if (isArabic) "وزن الحديد التقريبي: ${if (valid) "%.2f".format(steelWeightKg) else "—"} كغ" else "Poids estimé : ${if (valid) "%.2f".format(steelWeightKg) else "—"} kg", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isNetworks -> Text(if (isArabic) "الطول الإجمالي للشبكة: ${if (valid) "%.2f".format(networkLengthM) else "—"} م" else "Longueur totale du réseau : ${if (valid) "%.2f".format(networkLengthM) else "—"} m", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isFormwork -> Text(if (isArabic) "مساحة القوالب التقديرية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface estimée du coffrage : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isStairs -> Text(if (isArabic) "حجم خرسانة السلم التقديري: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume estimé de béton de l’escalier : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     isRoof -> {
                         Text(if (isArabic) "المساحة: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface : ${if (valid) "%.3f".format(area) else "—"} m²")
                         Text(if (isArabic) "حجم الخرسانة: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume de béton : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -848,22 +895,29 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
                     else -> Text(if (isArabic) "المساحة الصافية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface nette : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 if (!valid) Text(
-                    if (isArabic) "راجع المدخلات: يجب أن تكون الأبعاد والأعداد موجبة، وألا تتجاوز الفتحات مساحة الجدار." else "Vérifiez les données : valeurs positives et ouvertures inférieures à la surface du mur.",
+                    if (isArabic) "راجع المدخلات: تأكد من أن الأعداد والأبعاد والفتحات وقطر الحديد صالحة." else "Vérifiez les quantités, dimensions, ouvertures et diamètre des barres.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
-        if (!isLabor) {
-            CalculatedQuantityCostEntry(section, projectId, calculatedQuantity, calculatedUnit, isArabic)
-        }
+        if (!isLabor) CalculatedQuantityCostEntry(section, projectId, calculatedQuantity, calculatedUnit, isArabic)
         Text(
-            if (isArabic) "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ. في حساب اليد العاملة، أدخل عدد الوحدات وسعر الوحدة المناسب." else "Estimations de quantités. Hors pertes, spécifications des matériaux et détails d’exécution. Pour la main-d’œuvre, saisissez le nombre d’unités et le prix unitaire.",
+            if (isArabic) when {
+                isSteel -> "وزن تقريبي باستعمال d²/162 كغ لكل متر؛ لا يغني عن جدول الثني والتفاصيل الإنشائية."
+                isFormwork -> "تقدير لأوجه عنصر مستطيل بأربعة جوانب؛ لا يشمل القاع أو الهدر أو تفاصيل التدعيم."
+                isNetworks -> "الكمية طولية تقديرية؛ حدّد نوع الشبكة ومواصفاتها في وصف بند التكلفة."
+                else -> "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ."
+            } else when {
+                isSteel -> "Poids indicatif selon d²/162 kg par mètre ; ne remplace pas le plan de façonnage."
+                isFormwork -> "Estimation des quatre faces d’un élément rectangulaire, hors fond, pertes et étaiement."
+                isNetworks -> "Quantité linéaire estimative ; précisez le type et les spécifications du réseau."
+                else -> "Estimations de quantités, hors pertes et détails d’exécution."
+            },
             style = MaterialTheme.typography.bodySmall
         )
     }
 }
-
 
 
 @Composable
@@ -897,6 +951,10 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
             "السقوف والبلاطات" -> "Planchers et dalles"
             "التلبيس والطلاء" -> "Enduit et peinture"
             "الأرضيات والتبليط" -> "Revêtements"
+            "القوالب" -> "Coffrage"
+            "الحديد" -> "Ferraillage"
+            "الشبكات" -> "Réseaux"
+            "التشطيبات" -> "Finitions"
             "الحفر والردم" -> "Terrassement"
             "السلالم" -> "Escaliers"
             else -> "Main-d’œuvre"
@@ -1542,13 +1600,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                                         runCatching {
                                             database.withTransaction {
                                                 dao.deleteDevisLine(line.id, line.devisId)
-                                                val document = dao.getDevisDocument(line.devisId) ?: return@withTransaction
-                                                val remaining = dao.getDevisLines(line.devisId)
-                                                val materialHt = java.math.BigDecimal.valueOf(remaining.filter { it.category == "MATERIAL" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
-                                                val laborHt = java.math.BigDecimal.valueOf(remaining.filter { it.category == "LABOR" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
-                                                val ht = java.math.BigDecimal.valueOf(materialHt).add(java.math.BigDecimal.valueOf(laborHt)).setScale(2, java.math.RoundingMode.HALF_UP)
-                                                val tva = ht.multiply(java.math.BigDecimal.valueOf(document.tvaPercent)).divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
-                                                dao.updateDevisDocument(document.copy(totalMaterials = materialHt, totalLabor = laborHt, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
+                                                dao.recalculateDevisDocument(line.devisId)
                                             }
                                         }.onFailure { devisMessage = (if (isArabic) "تعذر حذف البند: " else "Suppression impossible : ") + (it.message ?: "Erreur") }
                                     }
@@ -1586,13 +1638,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             runCatching {
                                 database.withTransaction {
                                     dao.updateDevisLine(line.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()))
-                                    val document = dao.getDevisDocument(line.devisId) ?: error("Devis not found")
-                                    val updatedLines = dao.getDevisLines(line.devisId).map { if (it.id == line.id) it.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()) else it }
-                                    val materials = BigDecimal.valueOf(updatedLines.filter { it.category == "MATERIAL" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
-                                    val labor = BigDecimal.valueOf(updatedLines.filter { it.category == "LABOR" }.sumOf { it.total }).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
-                                    val ht = BigDecimal.valueOf(materials).add(BigDecimal.valueOf(labor)).setScale(2, java.math.RoundingMode.HALF_UP)
-                                    val tva = ht.multiply(BigDecimal.valueOf(document.tvaPercent)).divide(BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
-                                    dao.updateDevisDocument(document.copy(totalMaterials = materials, totalLabor = labor, totalHt = ht.toDouble(), tvaAmount = tva.toDouble(), totalTtc = ht.add(tva).toDouble()))
+                                    dao.recalculateDevisDocument(line.devisId)
                                 }
                             }.onSuccess {
                                 editingDevisLine = null
