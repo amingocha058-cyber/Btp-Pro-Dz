@@ -831,22 +831,22 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) section else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        NumberField(
-            if (isArabic) when {
-                isSteel -> "عدد قضبان الحديد"
-                isNetworks -> "عدد المسارات / الخطوط"
-                isFormwork -> "عدد العناصر"
-                isLabor -> "عدد وحدات العمل / الأيام / الساعات"
-                else -> "عدد العناصر / الغرف / المساحات"
-            } else when {
-                isSteel -> "Nombre de barres"
-                isNetworks -> "Nombre de parcours / lignes"
-                isFormwork -> "Nombre d’éléments"
-                isLabor -> "Nombre d’unités / jours / heures"
-                else -> "Nombre d’éléments / pièces / surfaces"
-            },
-            countText
-        ) { countText = it }
+        if (!isLabor) {
+            NumberField(
+                if (isArabic) when {
+                    isSteel -> "عدد قضبان الحديد"
+                    isNetworks -> "عدد المسارات / الخطوط"
+                    isFormwork -> "عدد العناصر"
+                    else -> "عدد العناصر / الغرف / المساحات"
+                } else when {
+                    isSteel -> "Nombre de barres"
+                    isNetworks -> "Nombre de parcours / lignes"
+                    isFormwork -> "Nombre d’éléments"
+                    else -> "Nombre d’éléments / pièces / surfaces"
+                },
+                countText
+            ) { countText = it }
+        }
 
         if (isLabor) {
             NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
