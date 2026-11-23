@@ -422,10 +422,12 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?, foundation
     val totalVolume = foundationResult?.totalVolumeM3?.toDouble() ?: 0.0
     val typesAr = listOf("قواعد منفردة", "قواعد شريطية", "سملات / ميدات")
     val typesFr = listOf("Semelles isolées", "Semelles filantes", "Longrines")
+    val selectedTypeAr = typesAr[foundationType]
+    val selectedTypeFr = typesFr[foundationType]
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة " + typesAr[foundationType] else "Calculateur : " + typesFr[foundationType],
+            if (isArabic) "حاسبة $selectedTypeAr" else "Calculateur : $selectedTypeFr",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -573,6 +575,8 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?, elementTyp
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val elementLabelAr = if (elementType == 0) "الأعمدة" else "الجسور"
+    val elementLabelFr = if (elementType == 0) "Poteaux" else "Poutres"
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
     val dimensionsValid = length.isFinite() && length > 0.0 &&
@@ -591,7 +595,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?, elementTyp
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة " + if (elementType == 0) "الأعمدة" else "الجسور" else "Calculateur : " + if (elementType == 0) "Poteaux" else "Poutres",
+            if (isArabic) "حاسبة $elementLabelAr" else "Calculateur : $elementLabelFr",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -621,7 +625,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?, elementTyp
                 )
             }
         }
-        CalculatedQuantityCostEntry(if (elementType == 0) "الأعمدة" else "الجسور", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
+        CalculatedQuantityCostEntry(elementLabelAr, projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
             style = MaterialTheme.typography.bodySmall
