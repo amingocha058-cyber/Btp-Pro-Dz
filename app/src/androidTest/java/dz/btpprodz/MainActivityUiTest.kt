@@ -40,6 +40,7 @@ class MainActivityUiTest {
     fun concreteCalculatorOpensAndShowsCalculatedResult() {
         composeRule.onNodeWithText("الخرسانة").performClick()
         composeRule.onNodeWithText("حساب عدد وحجم العناصر الخرسانية").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
 
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
@@ -57,6 +58,7 @@ class MainActivityUiTest {
     fun foundationCalculatorOpensAndShowsResultCard() {
         composeRule.onNodeWithText("قواعد منفردة").performClick()
         composeRule.onNodeWithText("حاسبة قواعد منفردة").assertIsDisplayed()
+        composeRule.onAllNodesWithText("نوع الأساس").assertCountEquals(1)
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
@@ -109,6 +111,7 @@ class MainActivityUiTest {
     fun columnsCalculatorDisplaysExpectedConcreteVolume() {
         composeRule.onNodeWithText("الأعمدة").performClick()
         composeRule.onNodeWithText("حاسبة الأعمدة").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
         val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
         result.performScrollTo()
         result.assertIsDisplayed()
@@ -118,6 +121,7 @@ class MainActivityUiTest {
     fun beamsCalculatorDisplaysExpectedConcreteVolume() {
         composeRule.onNodeWithText("الجسور").performClick()
         composeRule.onNodeWithText("حاسبة الجسور").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
         val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
         result.performScrollTo()
         result.assertIsDisplayed()
