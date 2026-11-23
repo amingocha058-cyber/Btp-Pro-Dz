@@ -148,6 +148,30 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("التكلفة الإجمالية:", substring = true).performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun formworkCalculatorShowsEstimatedArea() {
+        openSection("القوالب")
+        composeRule.onNodeWithText("مساحة القوالب التقديرية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun steelCalculatorShowsEstimatedRebarWeight() {
+        openSection("الحديد")
+        composeRule.onNodeWithText("وزن الحديد التقريبي:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun networksCalculatorShowsTotalLength() {
+        openSection("الشبكات")
+        composeRule.onNodeWithText("الطول الإجمالي للشبكة:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun finishesCalculatorShowsNetArea() {
+        openSection("التشطيبات")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
     private fun openSection(section: String) {
         composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال")
             .performTextInput(section)
