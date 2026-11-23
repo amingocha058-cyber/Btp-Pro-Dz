@@ -877,8 +877,11 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
         Divider()
         Text(if (isArabic) "تكلفة المواد — $section" else "Coût des matériaux — ${when(section) {
             "الخرسانة" -> "Béton"
-            "الأساسات" -> "Fondations"
-            "الأعمدة والجسور" -> "Poteaux et poutres"
+            "قواعد منفردة" -> "Semelles isolées"
+            "قواعد شريطية" -> "Semelles filantes"
+            "السملات والميدات" -> "Longrines"
+            "الأعمدة" -> "Poteaux"
+            "الجسور" -> "Poutres"
             "الجدران والبناء" -> "Maçonnerie"
             "السقوف والبلاطات" -> "Planchers et dalles"
             "التلبيس والطلاء" -> "Enduit et peinture"
@@ -974,10 +977,29 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
         rate.unitPrice.isFinite() && rate.unitPrice >= 0.0 && calculatedTotal.isFinite() &&
         projectId != null
     val total = costs.sumOf { it.totalCost }
+    val sectionLabelFr = when (section) {
+        "قواعد منفردة" -> "Semelles isolées"
+        "قواعد شريطية" -> "Semelles filantes"
+        "السملات والميدات" -> "Longrines"
+        "الأعمدة" -> "Poteaux"
+        "الجسور" -> "Poutres"
+        "الخرسانة" -> "Béton"
+        "الجدران والبناء" -> "Maçonnerie"
+        "السقوف والبلاطات" -> "Planchers et dalles"
+        "التلبيس والطلاء" -> "Enduit et peinture"
+        "الأرضيات والتبليط" -> "Revêtements"
+        "القوالب" -> "Coffrage"
+        "الحديد" -> "Ferraillage"
+        "الشبكات" -> "Réseaux"
+        "التشطيبات" -> "Finitions"
+        "الحفر والردم" -> "Terrassement"
+        "السلالم" -> "Escaliers"
+        else -> section
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (projectId == null) Text(if (isArabic) "اختر مشروعاً من شاشة المشاريع قبل تسجيل التكاليف." else "Sélectionnez un projet dans l’écran Projets avant d’enregistrer des coûts.", color = MaterialTheme.colorScheme.error)
         Divider()
-        Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + section, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + sectionLabelFr, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (rates.isEmpty()) Text(if (isArabic) "أضف أسعار المهن من الإعدادات أولاً." else "Ajoutez les tarifs des métiers dans les paramètres.")
         rates.forEach { item ->
             val label = item.tradeName + " — " + item.unitPrice + " دج / " + item.unit
