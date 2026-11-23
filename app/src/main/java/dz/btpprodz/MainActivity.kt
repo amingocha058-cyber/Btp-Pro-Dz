@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -235,7 +236,10 @@ private fun BtpProDzApp() {
                         }
                         items(filteredSections) { section ->
                             Card(
-                                modifier = Modifier.fillMaxWidth().clickable {
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("work-section-${section.ar}")
+                                    .clickable {
                                     if (section.ar == "الخرسانة") showConcreteCalculator = true
                                     if (section.ar == "الأساسات") showFoundationCalculator = true
                                     if (section.ar == "الحفر والردم") showEarthworksCalculator = true
