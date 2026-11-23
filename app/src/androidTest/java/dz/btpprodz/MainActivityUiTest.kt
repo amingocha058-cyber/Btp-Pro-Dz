@@ -154,7 +154,12 @@ class MainActivityUiTest {
         composeRule.waitUntil(5_000) { sectionNodes.fetchSemanticsNodes().isNotEmpty() }
         sectionNodes.onFirst().assertIsDisplayed()
         sectionNodes.onFirst().performClick()
-        composeRule.onNodeWithText("النتائج التقديرية").performScrollTo().assertIsDisplayed()
+        // Wait for the calculator screen itself. Not every calculator renders the
+        // shared "النتائج التقديرية" heading (some expose a specialized result card).
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("رجوع إلى الأقسام").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("رجوع إلى الأقسام").assertIsDisplayed()
     }
 
     @Test
