@@ -98,9 +98,12 @@ private data class WorkSection(
 )
 
 private val workSections = listOf(
-    WorkSection("الخرسانة", "Béton", "حساب أحجام الخرسانة وكميات المواد", "Volumes de béton et quantités de matériaux", "🧱"),
-    WorkSection("الأساسات", "Fondations", "القواعد والسملات والأساسات", "Semelles, longrines et fondations", "🏗️"),
-    WorkSection("الأعمدة والجسور", "Poteaux et poutres", "حساب أبعاد وحجوم العناصر", "Dimensions et volumes des éléments", "🏛️"),
+    WorkSection("الخرسانة", "Béton", "حساب حجم الخرسانة وكميات مكوناتها", "Volume de béton et quantités de ses composants", "🧱"),
+    WorkSection("قواعد منفردة", "Semelles isolées", "حساب حجم القواعد المنفردة", "Volume des semelles isolées", "🏗️"),
+    WorkSection("قواعد شريطية", "Semelles filantes", "حساب حجم القواعد الشريطية", "Volume des semelles filantes", "🏗️"),
+    WorkSection("السملات والميدات", "Longrines", "حساب حجم السملات والميدات", "Volume des longrines", "🏗️"),
+    WorkSection("الأعمدة", "Poteaux", "حساب حجم خرسانة الأعمدة", "Volume de béton des poteaux", "🏛️"),
+    WorkSection("الجسور", "Poutres", "حساب حجم خرسانة الجسور", "Volume de béton des poutres", "🏛️"),
     WorkSection("الجدران والبناء", "Maçonnerie", "مساحات الجدران وخصم الفتحات", "Surfaces des murs et ouvertures", "🧱"),
     WorkSection("السقوف والبلاطات", "Planchers et dalles", "مساحة البلاطة وحجم الخرسانة", "Surface et volume des dalles", "▰"),
     WorkSection("التلبيس والطلاء", "Enduit et peinture", "مساحات التلبيس والطلاء", "Surfaces d’enduit et de peinture", "🖌️"),
@@ -119,16 +122,16 @@ private fun BtpProDzApp() {
     var isArabic by remember { mutableStateOf(true) }
     var calculatorSearch by remember { mutableStateOf("") }
     var showConcreteCalculator by remember { mutableStateOf(false) }
-    var showFoundationCalculator by remember { mutableStateOf(false) }
+    var selectedFoundationType by remember { mutableStateOf<Int?>(null) }
     var showEarthworksCalculator by remember { mutableStateOf(false) }
-    var showColumnBeamCalculator by remember { mutableStateOf(false) }
+    var selectedColumnBeamType by remember { mutableStateOf<Int?>(null) }
     var selectedOtherSection by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showProjects by remember { mutableStateOf(false) }
     var activeProjectId by remember { mutableStateOf<Long?>(null) }
 
-    val detailOpen = showConcreteCalculator || showFoundationCalculator ||
-        showEarthworksCalculator || showColumnBeamCalculator ||
+    val detailOpen = showConcreteCalculator || selectedFoundationType != null ||
+        showEarthworksCalculator || selectedColumnBeamType != null ||
         selectedOtherSection != null || showSettings || showProjects
 
     MaterialTheme {
@@ -161,9 +164,9 @@ private fun BtpProDzApp() {
                     OutlinedButton(
                         onClick = {
                             showConcreteCalculator = false
-                            showFoundationCalculator = false
+                            selectedFoundationType = null
                             showEarthworksCalculator = false
-                            showColumnBeamCalculator = false
+                            selectedColumnBeamType = null
                             selectedOtherSection = null
                             showSettings = false
                             showProjects = false
@@ -178,20 +181,22 @@ private fun BtpProDzApp() {
                             CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId)
                             LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId)
                         }
-                        showFoundationCalculator -> {
-                            FoundationCalculator(isArabic = isArabic, projectId = activeProjectId)
-                            CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId)
-                            LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId)
+                        selectedFoundationType != null -> {
+                            val foundationSection = listOf("قواعد منفردة", "قواعد شريطية", "السملات والميدات")[selectedFoundationType!!]
+                            FoundationCalculator(isArabic = isArabic, projectId = activeProjectId, foundationType = selectedFoundationType!!)
+                            CostEstimatorSection(section = foundationSection, isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = foundationSection, isArabic = isArabic, projectId = activeProjectId)
                         }
                         showEarthworksCalculator -> {
                             EarthworksCalculator(isArabic = isArabic, projectId = activeProjectId)
                             CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId)
                             LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId)
                         }
-                        showColumnBeamCalculator -> {
-                            ColumnBeamCalculator(isArabic = isArabic, projectId = activeProjectId)
-                            CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId)
-                            LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId)
+                        selectedColumnBeamType != null -> {
+                            val columnBeamSection = if (selectedColumnBeamType == 0) "الأعمدة" else "الجسور"
+                            ColumnBeamCalculator(isArabic = isArabic, projectId = activeProjectId, elementType = selectedColumnBeamType!!)
+                            CostEstimatorSection(section = columnBeamSection, isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = columnBeamSection, isArabic = isArabic, projectId = activeProjectId)
                         }
                         selectedOtherSection != null -> {
                             OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
@@ -255,9 +260,12 @@ private fun BtpProDzApp() {
                                         .clickable {
                                             when (section.ar) {
                                                 "الخرسانة" -> showConcreteCalculator = true
-                                                "الأساسات" -> showFoundationCalculator = true
+                                                "قواعد منفردة" -> selectedFoundationType = 0
+                                                "قواعد شريطية" -> selectedFoundationType = 1
+                                                "السملات والميدات" -> selectedFoundationType = 2
+                                                "الأعمدة" -> selectedColumnBeamType = 0
+                                                "الجسور" -> selectedColumnBeamType = 1
                                                 "الحفر والردم" -> showEarthworksCalculator = true
-                                                "الأعمدة والجسور" -> showColumnBeamCalculator = true
                                                 else -> selectedOtherSection = section.ar
                                             }
                                         },
@@ -297,7 +305,6 @@ private fun BtpProDzApp() {
 
 @Composable
 private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
-    var elementType by remember { mutableStateOf(0) }
     var quantityText by remember { mutableStateOf("1") }
     var lengthText by remember { mutableStateOf("0.30") }
     var widthText by remember { mutableStateOf("0.30") }
@@ -307,8 +314,6 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
     var gravelDosageText by remember { mutableStateOf("") }
     var wasteText by remember { mutableStateOf("0") }
 
-    val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
-    val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
     val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
@@ -345,22 +350,12 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
         )
     }.getOrNull() else null
 
-    val dimensionLabels = when (elementType) {
-        0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
-        1 -> if (isArabic) listOf("عرض المقطع (م)", "عمق المقطع (م)", "الارتفاع (م)") else listOf("Largeur (m)", "Profondeur (m)", "Hauteur (m)")
-        2 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur (m)")
-        else -> if (isArabic) listOf("الطول (م)", "العرض (م)", "السماكة (م)") else listOf("Longueur (m)", "Largeur (m)", "Épaisseur (m)")
-    }
+    val dimensionLabels = if (isArabic)
+        listOf("الطول (م)", "العرض (م)", "الارتفاع / السماكة (م)")
+    else listOf("Longueur (m)", "Largeur (m)", "Hauteur / épaisseur (m)")
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "حساب عدد وحجم العناصر الخرسانية" else "Nombre et volume des éléments en béton", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(if (isArabic) "اختر نوع العنصر" else "Choisissez le type d’élément")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            typesAr.forEachIndexed { index, ar ->
-                if (elementType == index) Button(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
-                else OutlinedButton(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
-            }
-        }
         NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
         NumberField(dimensionLabels[0], lengthText) { lengthText = it }
         NumberField(dimensionLabels[1], widthText) { widthText = it }
@@ -397,8 +392,7 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
 
 
 @Composable
-private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
-    var foundationType by remember { mutableStateOf(0) }
+private fun FoundationCalculator(isArabic: Boolean, projectId: Long?, foundationType: Int) {
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("1.20") }
     var widthText by remember { mutableStateOf("1.20") }
@@ -431,24 +425,10 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة الأساسات" else "Calculateur des fondations",
+            if (isArabic) "حاسبة " + typesAr[foundationType] else "Calculateur : " + typesFr[foundationType],
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Text(if (isArabic) "نوع الأساس" else "Type de fondation")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            typesAr.forEachIndexed { index, ar ->
-                if (foundationType == index) {
-                    Button(onClick = { foundationType = index }) {
-                        Text(if (isArabic) ar else typesFr[index])
-                    }
-                } else {
-                    OutlinedButton(onClick = { foundationType = index }) {
-                        Text(if (isArabic) ar else typesFr[index])
-                    }
-                }
-            }
-        }
         NumberField(if (isArabic) "العدد" else "Quantité", quantityText) { quantityText = it }
         NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
         NumberField(if (isArabic) "العرض (م)" else "Largeur (m)", widthText) { widthText = it }
@@ -583,8 +563,7 @@ private fun EarthworksCalculator(isArabic: Boolean, projectId: Long?) {
 
 
 @Composable
-private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
-    var elementType by remember { mutableStateOf(0) }
+private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?, elementType: Int) {
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("3.00") }
     var widthText by remember { mutableStateOf("0.25") }
@@ -612,23 +591,10 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة الأعمدة والجسور" else "Calculateur des poteaux et poutres",
+            if (isArabic) "حاسبة " + if (elementType == 0) "الأعمدة" else "الجسور" else "Calculateur : " + if (elementType == 0) "Poteaux" else "Poutres",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Text(if (isArabic) "اختر نوع العنصر" else "Type d’élément")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (elementType == 0) Button(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الأعمدة" else "Poteaux")
-            } else OutlinedButton(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الأعمدة" else "Poteaux")
-            }
-            if (elementType == 1) Button(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الجسور" else "Poutres")
-            } else OutlinedButton(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الجسور" else "Poutres")
-            }
-        }
         NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
         NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
         NumberField(if (isArabic) "عرض المقطع (م)" else "Largeur de section (m)", widthText) { widthText = it }
@@ -655,7 +621,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
                 )
             }
         }
-        CalculatedQuantityCostEntry("الأعمدة والجسور", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
+        CalculatedQuantityCostEntry(if (elementType == 0) "الأعمدة" else "الجسور", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
             style = MaterialTheme.typography.bodySmall
