@@ -9,7 +9,7 @@ on:
 
 jobs:
   debug-build:
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +40,6 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
           script: gradle --no-daemon :app:connectedDebugAndroidTest
-          disable-linux-hw-accel: false
 
       - name: Upload Android UI test reports
         if: always()
