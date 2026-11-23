@@ -215,6 +215,34 @@ interface AppDataDao {
     @Query("SELECT * FROM devis_documents WHERE id = :devisId LIMIT 1")
     suspend fun getDevisDocument(devisId: Long): DevisDocumentEntity?
 
+    /**
+     * Rebuilds the saved financial snapshot from persisted lines.
+     * Call inside a Room transaction after editing or deleting a line.
+     */
+    @Transaction
+    suspend fun recalculateDevisDocument(devisId: Long) {
+        val document = getDevisDocument(devisId) ?: return
+        val lines = getDevisLines(devisId)
+        val materials = java.math.BigDecimal.valueOf(
+            lines.filter { it.category == "MATERIAL" }.sumOf { it.total }
+        ).setScale(2, java.math.RoundingMode.HALF_UP)
+        val labor = java.math.BigDecimal.valueOf(
+            lines.filter { it.category == "LABOR" }.sumOf { it.total }
+        ).setScale(2, java.math.RoundingMode.HALF_UP)
+        val ht = materials.add(labor).setScale(2, java.math.RoundingMode.HALF_UP)
+        val vat = ht.multiply(java.math.BigDecimal.valueOf(document.tvaPercent))
+            .divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
+        updateDevisDocument(
+            document.copy(
+                totalMaterials = materials.toDouble(),
+                totalLabor = labor.toDouble(),
+                totalHt = ht.toDouble(),
+                tvaAmount = vat.toDouble(),
+                totalTtc = ht.add(vat).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
+            )
+        )
+    }
+
     @Update
     suspend fun updateDevisLine(line: DevisLineEntity)
 
