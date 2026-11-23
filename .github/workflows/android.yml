@@ -9,7 +9,9 @@ on:
 
 jobs:
   debug-build:
-    runs-on: macos-14
+    # macos-14 was retired by GitHub on 2026-11-02.
+    # Use the supported Intel macOS 15 runner for Android emulator compatibility.
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
