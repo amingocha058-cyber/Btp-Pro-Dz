@@ -23,7 +23,7 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("Btp Pro Dz").assertIsDisplayed()
         composeRule.onNodeWithText("اختر الحاسبة").assertIsDisplayed()
         composeRule.onNodeWithText("الخرسانة").assertIsDisplayed()
-        composeRule.onNodeWithText("الأساسات").assertIsDisplayed()
+        composeRule.onNodeWithText("قواعد منفردة").assertIsDisplayed()
         composeRule.onAllNodesWithText("حسب الأشغال").assertCountEquals(0)
         composeRule.onAllNodesWithText("مراحل البناء").assertCountEquals(0)
     }
@@ -55,8 +55,8 @@ class MainActivityUiTest {
 
     @Test
     fun foundationCalculatorOpensAndShowsResultCard() {
-        composeRule.onNodeWithText("الأساسات").performClick()
-        composeRule.onNodeWithText("حاسبة الأساسات").assertIsDisplayed()
+        composeRule.onNodeWithText("قواعد منفردة").performClick()
+        composeRule.onNodeWithText("حاسبة قواعد منفردة").assertIsDisplayed()
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
@@ -106,9 +106,18 @@ class MainActivityUiTest {
     }
 
     @Test
-    fun columnsAndBeamsDisplaysExpectedConcreteVolume() {
-        composeRule.onNodeWithText("الأعمدة والجسور").performClick()
-        composeRule.onNodeWithText("حاسبة الأعمدة والجسور").assertIsDisplayed()
+    fun columnsCalculatorDisplaysExpectedConcreteVolume() {
+        composeRule.onNodeWithText("الأعمدة").performClick()
+        composeRule.onNodeWithText("حاسبة الأعمدة").assertIsDisplayed()
+        val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
+        result.performScrollTo()
+        result.assertIsDisplayed()
+    }
+
+    @Test
+    fun beamsCalculatorDisplaysExpectedConcreteVolume() {
+        composeRule.onNodeWithText("الجسور").performClick()
+        composeRule.onNodeWithText("حاسبة الجسور").assertIsDisplayed()
         val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
         result.performScrollTo()
         result.assertIsDisplayed()
