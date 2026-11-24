@@ -673,10 +673,22 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     val isSteel = section == "الحديد"
     val isNetworks = section == "الشبكات"
 
-    // Formwork estimate: four vertical faces of a rectangular column/element.
-    val formworkArea = count * 2.0 * (length + width) * height
-    // Approximate rebar mass: d² / 162 kg per metre, with diameter in mm.
-    val steelWeightKg = count * length * (steelDiameterMm * steelDiameterMm / 162.0)
+    // Dedicated quantity modules: column side shutters and straight longitudinal bars.
+    val formworkArea = runCatching {
+        FormworkCalculator.columns(
+            count.toInt(),
+            BigDecimal.valueOf(length),
+            BigDecimal.valueOf(width),
+            BigDecimal.valueOf(height)
+        ).totalAreaM2.toDouble()
+    }.getOrDefault(-1.0)
+    val steelWeightKg = runCatching {
+        RebarCalculator.straightBars(
+            count.toInt(),
+            BigDecimal.valueOf(length),
+            BigDecimal.valueOf(steelDiameterMm)
+        ).totalMassKg.toDouble()
+    }.getOrDefault(-1.0)
     val networkLengthM = count * length
     val laborTotal = count * unitPrice
 
@@ -780,12 +792,12 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
             NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
             NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
         } else {
-            NumberField(if (isArabic) if (isSteel || isNetworks) "طول القضيب / المسار (م)" else if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
+            NumberField(if (isArabic) when { isSteel -> "طول القضيب الواحد (م)"; isNetworks -> "طول المسار (م)"; isStairs -> "طول الميل (م)"; isFormwork -> "عرض العمود A (م)"; else -> "الطول (م)" } else when { isSteel -> "Longueur d’une barre (m)"; isNetworks -> "Longueur du parcours (m)"; isStairs -> "Longueur inclinée (m)"; isFormwork -> "Côté A du poteau (m)"; else -> "Longueur (m)" }, lengthText) { lengthText = it }
             if (isSteel) {
                 NumberField(if (isArabic) "قطر القضيب (مم)" else "Diamètre de la barre (mm)", steelDiameterText) { steelDiameterText = it }
             } else if (isFormwork) {
-                NumberField(if (isArabic) "عرض المقطع (م)" else "Largeur de section (m)", widthText) { widthText = it }
-                NumberField(if (isArabic) "ارتفاع العنصر (م)" else "Hauteur de l’élément (m)", heightText) { heightText = it }
+                NumberField(if (isArabic) "عرض العمود B (م)" else "Côté B du poteau (m)", widthText) { widthText = it }
+                NumberField(if (isArabic) "ارتفاع العمود (م)" else "Hauteur du poteau (m)", heightText) { heightText = it }
             } else if (isNetworks) {
                 Text(if (isArabic) "أدخل الطول الإجمالي لكل مسار؛ نوع الشبكة يحدد في وصف بند التكلفة." else "Saisissez la longueur de chaque parcours ; précisez le type de réseau dans le coût.")
             } else {
@@ -841,12 +853,12 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         Text(
             if (isArabic) when {
                 isSteel -> "وزن تقريبي باستعمال d²/162 كغ لكل متر؛ لا يغني عن جدول الثني والتفاصيل الإنشائية."
-                isFormwork -> "تقدير لأوجه عنصر مستطيل بأربعة جوانب؛ لا يشمل القاع أو الهدر أو تفاصيل التدعيم."
+                isFormwork -> "قوالب الأعمدة: محيط المقطع × ارتفاع العمود × العدد. لا يشمل القاعدة أو رأس العمود أو الهدر أو التدعيم."
                 isNetworks -> "الكمية طولية تقديرية؛ حدّد نوع الشبكة ومواصفاتها في وصف بند التكلفة."
                 else -> "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ."
             } else when {
                 isSteel -> "Poids indicatif selon d²/162 kg par mètre ; ne remplace pas le plan de façonnage."
-                isFormwork -> "Estimation des quatre faces d’un élément rectangulaire, hors fond, pertes et étaiement."
+                isFormwork -> "Poteaux : périmètre de section × hauteur × nombre. Hors base, tête, pertes et étaiement."
                 isNetworks -> "Quantité linéaire estimative ; précisez le type et les spécifications du réseau."
                 else -> "Estimations de quantités, hors pertes et détails d’exécution."
             },
