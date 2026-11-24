@@ -217,6 +217,12 @@ class MainActivityUiTest {
 
         val createDevis = composeRule.onNodeWithText("إنشاء Devis من التكاليف المسجلة")
         createDevis.performScrollTo().performClick()
+        // The click launches a coroutine and reads the project costs inside a Room transaction.
+        // Wait for the asynchronous UI state update before querying the message node.
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithText("لا يمكن إنشاء Devis فارغ", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithText("لا يمكن إنشاء Devis فارغ", substring = true)
             .performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("لم تُنشأ وثائق لهذا المشروع بعد.")
