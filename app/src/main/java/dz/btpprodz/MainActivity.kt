@@ -305,10 +305,10 @@ private fun BtpProDzApp() {
 
 @Composable
 private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
-    var quantityText by remember { mutableStateOf("1") }
-    var lengthText by remember { mutableStateOf("0.30") }
-    var widthText by remember { mutableStateOf("0.30") }
-    var heightText by remember { mutableStateOf("0.30") }
+    var quantityText by remember { mutableStateOf("") }
+    var lengthText by remember { mutableStateOf("") }
+    var widthText by remember { mutableStateOf("") }
+    var heightText by remember { mutableStateOf("") }
     var cementDosageText by remember { mutableStateOf("") }
     var sandDosageText by remember { mutableStateOf("") }
     var gravelDosageText by remember { mutableStateOf("") }
@@ -1657,7 +1657,7 @@ private fun CalculatedQuantityCostEntry(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Divider()
         Text(
-            if (isArabic) "إضافة الكمية المحسوبة إلى المشروع وDevis" else "Ajouter la quantité calculée au projet et au devis",
+            if (isArabic) "تسجيل الكمية والتكلفة في المشروع" else "Enregistrer la quantité et le coût dans le projet",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -1699,7 +1699,7 @@ private fun CalculatedQuantityCostEntry(
                 },
                 enabled = canSave,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text(if (isArabic) "حفظ الكمية والتكلفة للمشروع" else "Enregistrer quantité et coût") }
+            ) { Text(if (isArabic) "حفظ بند التكلفة في المشروع" else "Enregistrer le coût dans le projet") }
         }
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
     }
