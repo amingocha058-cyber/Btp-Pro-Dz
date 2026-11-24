@@ -1690,7 +1690,7 @@ private fun CalculatedQuantityCostEntry(
                                 )
                             )
                         }.onSuccess {
-                            message = if (isArabic) "تم حفظ الكمية والتكلفة في المشروع. أنشئ Devis من شاشة المشاريع لإدراجها." else "Quantité et coût enregistrés. Créez le devis depuis l’écran Projets."
+                            message = if (isArabic) "تم الحفظ في تكاليف المشروع فقط. انتقل إلى «المشاريع وDevis» ثم اضغط «إنشاء Devis من التكاليف المسجلة»." else "Enregistré dans les coûts du projet. Ouvrez « Projets et devis », puis appuyez sur « Créer un devis à partir des coûts enregistrés »."
                             unitPriceText = ""
                         }.onFailure {
                             message = (if (isArabic) "تعذر الحفظ: " else "Échec : ") + (it.message ?: "Erreur")
