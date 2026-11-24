@@ -1667,11 +1667,21 @@ private fun CalculatedQuantityCostEntry(
                 color = MaterialTheme.colorScheme.error
             )
         } else {
-            Text(if (isArabic) "الكمية المحسوبة: ${"%.3f".format(quantity)} $unit" else "Quantité calculée : ${"%.3f".format(quantity)} $unit")
+            Text(if (isArabic) "الكمية المحسوبة التي ستُسجّل: ${"%.3f".format(quantity)} $unit" else "Quantité calculée à enregistrer : ${"%.3f".format(quantity)} $unit")
+            Text(
+                if (isArabic) "الخطوة 1: أدخل سعر وحدة واحدة بالدينار. سيحسب التطبيق التكلفة تلقائياً." else "Étape 1 : saisissez le prix d’une unité en DA. Le coût sera calculé automatiquement.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             NumberField(if (isArabic) "سعر الوحدة (دج / $unit)" else "Prix unitaire (DA / $unit)", unitPriceText) { unitPriceText = it }
             Text(
-                if (isArabic) "المجموع: ${if (total.isFinite()) "%.2f".format(total) else "—"} دج" else "Total : ${if (total.isFinite()) "%.2f".format(total) else "—"} DA",
+                if (isArabic) "تكلفة هذا البند: ${if (total.isFinite()) "%.2f".format(total) else "أدخل سعر الوحدة"} دج" else "Coût de cette ligne : ${if (total.isFinite()) "%.2f".format(total) else "Saisissez le prix unitaire"} DA",
                 fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                if (isArabic) "الخطوة 2: اضغط حفظ لتسجيل الكمية والتكلفة في المشروع فقط. الخطوة 3: افتح «المشاريع وDevis» ثم أنشئ Devis لإدراج البنود المسجلة." else "Étape 2 : enregistrez cette quantité et son coût dans le projet. Étape 3 : ouvrez « Projets et devis » puis créez un devis pour y inclure les lignes enregistrées.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Button(
                 onClick = {
