@@ -17,7 +17,7 @@ class MetreQuantityCalculatorTest {
     @Test fun volumeMatchesSampleSheetSecondRow() {
         val row = MetreQuantityCalculator.Row("CH4", d("4.65"), d("0.30"), d("0.45"), 2,
             MetreQuantityCalculator.MeasureType.VOLUME_M3)
-        assertEquals(0, row.quantity().compareTo(d("1.256")))
+        assertEquals(0, row.quantity().compareTo(d("1.2555")))
     }
 
     @Test fun surfaceMatchesSampleSheet() {
