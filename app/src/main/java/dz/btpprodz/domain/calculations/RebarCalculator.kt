@@ -22,7 +22,7 @@ object RebarCalculator {
         return Result(cutLengthM, totalLength, unitMass, totalMass)
     }
 
-    /** Number of stirrups = floor(clearLength / spacing) + 1, including both ends. */
+    /** Number of stirrups = ceil(clearLength / spacing) + 1, including both ends, so spacing is never exceeded. */
     fun stirrups(
         clearLengthM: BigDecimal,
         spacingM: BigDecimal,
@@ -32,7 +32,9 @@ object RebarCalculator {
         require(clearLengthM > BigDecimal.ZERO) { "Clear length must be greater than zero." }
         require(spacingM > BigDecimal.ZERO) { "Spacing must be greater than zero." }
         require(cutLengthPerStirrupM > BigDecimal.ZERO) { "Stirrup cut length must be greater than zero." }
-        val count = clearLengthM.divideToIntegralValue(spacingM).toBigInteger().add(java.math.BigInteger.ONE)
+        val division = clearLengthM.divideAndRemainder(spacingM)
+        val intervals = division[0].toBigInteger().add(if (division[1] > BigDecimal.ZERO) java.math.BigInteger.ONE else java.math.BigInteger.ZERO)
+        val count = intervals.add(java.math.BigInteger.ONE)
         require(count <= java.math.BigInteger.valueOf(Int.MAX_VALUE.toLong())) { "Too many stirrups." }
         return straightBars(count.toInt(), cutLengthPerStirrupM, barDiameterMm)
     }
