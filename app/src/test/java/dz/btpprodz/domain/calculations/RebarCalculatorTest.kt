@@ -15,6 +15,10 @@ class RebarCalculatorTest {
         val r = RebarCalculator.stirrups(BigDecimal("3"), BigDecimal("0.15"), BigDecimal("8"), BigDecimal("1.1"))
         assertEquals(21, r.totalStraightLengthM.divide(BigDecimal("1.1")).toInt())
     }
+    @Test fun stirrupCountRoundsUpWhenSpacingDoesNotDivideLengthExactly() {
+        val r = RebarCalculator.stirrups(BigDecimal("2.5"), BigDecimal("0.2"), BigDecimal("8"), BigDecimal("1"))
+        assertEquals(14, r.totalStraightLengthM.toInt())
+    }
     @Test fun rejectsZeroDiameter() {
         assertThrows(IllegalArgumentException::class.java) {
             RebarCalculator.straightBars(4, BigDecimal("6"), BigDecimal.ZERO)
