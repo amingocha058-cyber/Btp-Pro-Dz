@@ -9,7 +9,9 @@ on:
 
 jobs:
   debug-build:
-    runs-on: ubuntu-latest
+    # macos-14 was retired by GitHub on 2026-11-02.
+    # Use the supported Intel macOS 15 runner for Android emulator compatibility.
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,13 +36,11 @@ jobs:
       - name: Run Android Compose UI tests on emulator
         timeout-minutes: 25
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ANDROID_I_WANT_MY_TCG: "yes"
         with:
           api-level: 35
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel off
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
           script: gradle --no-daemon :app:connectedDebugAndroidTest
 
       - name: Upload Android UI test reports

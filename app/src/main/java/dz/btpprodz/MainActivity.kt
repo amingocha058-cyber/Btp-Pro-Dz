@@ -17,8 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -40,15 +41,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.Alignment
 import dz.btpprodz.calculations.concrete.ConcreteMaterialCalculator
 import dz.btpprodz.calculations.concrete.ConcreteDosage
 import dz.btpprodz.calculations.concrete.ConcreteMaterialInput
 import dz.btpprodz.calculations.concrete.ConcreteVolumeCalculator
 import dz.btpprodz.calculations.concrete.ConcreteVolumeInput
 import dz.btpprodz.domain.calculations.DevisCostLine
+import dz.btpprodz.domain.calculations.FormworkCalculator
+import dz.btpprodz.domain.calculations.RebarCalculator
 import dz.btpprodz.domain.calculations.ProjectDevisCalculator
 import dz.btpprodz.domain.calculations.EarthworkCalculator
 import dz.btpprodz.domain.calculations.FoundationVolumeCalculator
@@ -58,6 +65,7 @@ import dz.btpprodz.domain.calculations.SlabVolumeCalculator
 import dz.btpprodz.domain.calculations.StairVolumeCalculator
 import dz.btpprodz.export.ProjectReportExporter
 import dz.btpprodz.export.ProjectReportRow
+import dz.btpprodz.export.ProjectReportSummary
 import java.math.BigDecimal
 import dz.btpprodz.data.AppSettingEntity
 import dz.btpprodz.data.BtpDatabase
@@ -83,56 +91,63 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class WorkSection(val ar: String, val fr: String, val descriptionAr: String, val descriptionFr: String)
-
-private val workSections = listOf(
-    WorkSection("الخرسانة", "Béton", "حساب عدد العناصر الخرسانية وأحجامها وكميات المواد", "Nombre d’éléments en béton, volumes et quantités des matériaux"),
-    WorkSection("الأساسات", "Fondations", "القواعد والسملات والحفر", "Semelles, longrines et fouilles"),
-    WorkSection("الأعمدة والجسور", "Poteaux et poutres", "الأبعاد والكميات", "Dimensions et quantités"),
-    WorkSection("الجدران والبناء", "Maçonnerie", "مساحات الجدران والآجر والمونة", "Surfaces, briques et mortier"),
-    WorkSection("السقوف والبلاطات", "Planchers et dalles", "حساب البلاطات والكميات", "Calcul des dalles et quantités"),
-    WorkSection("التلبيس والطلاء", "Enduit et peinture", "المساحات والمواد اللازمة", "Surfaces et matériaux nécessaires"),
-    WorkSection("الأرضيات والتبليط", "Revêtements", "البلاط والسيراميك والرخام", "Carrelage, céramique et marbre"),
-    WorkSection("الحفر والردم", "Terrassement", "حساب الحفر والردم", "Calcul des déblais et remblais"),
-    WorkSection("السلالم", "Escaliers", "الأبعاد والكميات", "Dimensions et quantités"),
-    WorkSection("اليد العاملة", "Main-d’œuvre", "حساب الأجور حسب نوع الأشغال", "Calcul des coûts par type de travaux")
+private data class WorkSection(
+    val ar: String,
+    val fr: String,
+    val descriptionAr: String,
+    val descriptionFr: String,
+    val icon: String
 )
 
-private val constructionStages = listOf(
-    "تهيئة الأرض والحفر" to "Préparation du terrain et terrassement",
-    "الأساسات" to "Fondations",
-    "الأعمدة والجسور" to "Poteaux et poutres",
-    "الجدران والبناء" to "Maçonnerie",
-    "السقف والبلاطة" to "Planchers et dalles",
-    "التلبيس والطلاء" to "Enduit et peinture",
-    "الأرضيات والتبليط" to "Revêtements",
-    "الأشغال النهائية" to "Finitions"
+private val workSections = listOf(
+    WorkSection("الخرسانة", "Béton", "حساب حجم الخرسانة وكميات مكوناتها", "Volume de béton et quantités de ses composants", "🧱"),
+    WorkSection("قواعد منفردة", "Semelles isolées", "حساب حجم القواعد المنفردة", "Volume des semelles isolées", "🏗️"),
+    WorkSection("قواعد شريطية", "Semelles filantes", "حساب حجم القواعد الشريطية", "Volume des semelles filantes", "🏗️"),
+    WorkSection("السملات والميدات", "Longrines", "حساب حجم السملات والميدات", "Volume des longrines", "🏗️"),
+    WorkSection("الأعمدة", "Poteaux", "حساب حجم خرسانة الأعمدة", "Volume de béton des poteaux", "🏛️"),
+    WorkSection("الجسور", "Poutres", "حساب حجم خرسانة الجسور", "Volume de béton des poutres", "🏛️"),
+    WorkSection("الجدران والبناء", "Maçonnerie", "مساحات الجدران وخصم الفتحات", "Surfaces des murs et ouvertures", "🧱"),
+    WorkSection("السقوف والبلاطات", "Planchers et dalles", "مساحة البلاطة وحجم الخرسانة", "Surface et volume des dalles", "▰"),
+    WorkSection("التلبيس والطلاء", "Enduit et peinture", "مساحات التلبيس والطلاء", "Surfaces d’enduit et de peinture", "🖌️"),
+    WorkSection("الأرضيات والتبليط", "Revêtements", "مساحة الأرضية وعدد البلاطات", "Surface du sol et nombre de carreaux", "🔲"),
+    WorkSection("القوالب", "Coffrage", "مساحة ألواح قوالب العناصر", "Surface de coffrage des éléments", "🪚"),
+    WorkSection("الحديد", "Ferraillage", "وزن قضبان التسليح", "Poids des barres d’armature", "🔩"),
+    WorkSection("الشبكات", "Réseaux", "أطوال الأنابيب أو الكابلات", "Longueurs des conduites ou câbles", "🔌"),
+    WorkSection("التشطيبات", "Finitions", "مساحات التشطيبات وخصم الفتحات", "Surfaces de finition et ouvertures", "🎨"),
+    WorkSection("الحفر والردم", "Terrassement", "حساب أحجام الحفر والردم", "Volumes de déblais et remblais", "🚜"),
+    WorkSection("السلالم", "Escaliers", "أبعاد وحجم خرسانة السلالم", "Dimensions et volume des escaliers", "🪜"),
+    WorkSection("اليد العاملة", "Main-d’œuvre", "حساب تكلفة العمال حسب الوحدات", "Coût de la main-d’œuvre par unité", "👷")
 )
 
 @Composable
 private fun BtpProDzApp() {
     var isArabic by remember { mutableStateOf(true) }
-    var selectedView by remember { mutableStateOf(0) }
     var calculatorSearch by remember { mutableStateOf("") }
     var showConcreteCalculator by remember { mutableStateOf(false) }
-    var showFoundationCalculator by remember { mutableStateOf(false) }
+    var selectedFoundationType by remember { mutableStateOf<Int?>(null) }
     var showEarthworksCalculator by remember { mutableStateOf(false) }
-    var showColumnBeamCalculator by remember { mutableStateOf(false) }
+    var selectedColumnBeamType by remember { mutableStateOf<Int?>(null) }
     var selectedOtherSection by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showProjects by remember { mutableStateOf(false) }
     var activeProjectId by remember { mutableStateOf<Long?>(null) }
 
+    val detailOpen = showConcreteCalculator || selectedFoundationType != null ||
+        showEarthworksCalculator || selectedColumnBeamType != null ||
+        selectedOtherSection != null || showSettings || showProjects
+
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier.fillMaxSize().padding(20.dp).then(
-                    if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator ||
-                        showColumnBeamCalculator || selectedOtherSection != null || showSettings || showProjects
-                    ) Modifier.verticalScroll(rememberScrollState()) else Modifier
+                    if (detailOpen) Modifier.verticalScroll(rememberScrollState()) else Modifier
                 )
             ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column {
                         Text("Btp Pro Dz", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                         Text(
@@ -146,183 +161,174 @@ private fun BtpProDzApp() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                if (!showConcreteCalculator && !showFoundationCalculator && !showEarthworksCalculator && !showColumnBeamCalculator && selectedOtherSection == null && !showSettings && !showProjects) {
+                Spacer(modifier = Modifier.height(12.dp))
+                if (detailOpen) {
+                    OutlinedButton(
+                        onClick = {
+                            showConcreteCalculator = false
+                            selectedFoundationType = null
+                            showEarthworksCalculator = false
+                            selectedColumnBeamType = null
+                            selectedOtherSection = null
+                            showSettings = false
+                            showProjects = false
+                        }
+                    ) {
+                        Text(if (isArabic) "رجوع إلى الحاسبات" else "Retour aux calculateurs")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    when {
+                        showConcreteCalculator -> {
+                            ConcreteCalculator(isArabic = isArabic, projectId = activeProjectId)
+                            CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId)
+                        }
+                        selectedFoundationType != null -> {
+                            val foundationSection = listOf("قواعد منفردة", "قواعد شريطية", "السملات والميدات")[selectedFoundationType!!]
+                            FoundationCalculator(isArabic = isArabic, projectId = activeProjectId, foundationType = selectedFoundationType!!)
+                            CostEstimatorSection(section = foundationSection, isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = foundationSection, isArabic = isArabic, projectId = activeProjectId)
+                        }
+                        showEarthworksCalculator -> {
+                            EarthworksCalculator(isArabic = isArabic, projectId = activeProjectId)
+                            CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId)
+                        }
+                        selectedColumnBeamType != null -> {
+                            val columnBeamSection = if (selectedColumnBeamType == 0) "الأعمدة" else "الجسور"
+                            ColumnBeamCalculator(isArabic = isArabic, projectId = activeProjectId, elementType = selectedColumnBeamType!!)
+                            CostEstimatorSection(section = columnBeamSection, isArabic = isArabic, projectId = activeProjectId)
+                            LaborCostSection(section = columnBeamSection, isArabic = isArabic, projectId = activeProjectId)
+                        }
+                        selectedOtherSection != null -> {
+                            OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                            if (selectedOtherSection != "اليد العاملة") {
+                                CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                                LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
+                            }
+                        }
+                        showSettings -> SettingsScreen(isArabic = isArabic)
+                        showProjects -> ProjectsScreen(isArabic = isArabic, onProjectSelected = { activeProjectId = it })
+                    }
+                } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showSettings = true }) {
+                        OutlinedButton(onClick = { showSettings = true }, modifier = Modifier.weight(1f)) {
                             Text(if (isArabic) "الإعدادات" else "Paramètres")
                         }
-                        Button(onClick = { showProjects = true }) {
+                        Button(onClick = { showProjects = true }, modifier = Modifier.weight(1f)) {
                             Text(if (isArabic) "المشاريع و Devis" else "Projets et devis")
                         }
                     }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                if (showConcreteCalculator || showFoundationCalculator || showEarthworksCalculator || showColumnBeamCalculator || selectedOtherSection != null || showSettings || showProjects) {
-                    OutlinedButton(onClick = { showConcreteCalculator = false; showFoundationCalculator = false; showEarthworksCalculator = false; showColumnBeamCalculator = false; selectedOtherSection = null; showSettings = false; showProjects = false }) {
-                        Text(if (isArabic) "رجوع إلى الأقسام" else "Retour aux rubriques")
-                    }
-                    if (showConcreteCalculator) { ConcreteCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الخرسانة", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showFoundationCalculator) { FoundationCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأساسات", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showEarthworksCalculator) { EarthworksCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الحفر والردم", isArabic = isArabic, projectId = activeProjectId) }
-                    if (showColumnBeamCalculator) { ColumnBeamCalculator(isArabic = isArabic, projectId = activeProjectId); CostEstimatorSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId); LaborCostSection(section = "الأعمدة والجسور", isArabic = isArabic, projectId = activeProjectId) }
-                    if (selectedOtherSection != null) {
-                        OtherWorkCalculator(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
-                        if (selectedOtherSection != "اليد العاملة") {
-                            CostEstimatorSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
-                            LaborCostSection(section = selectedOtherSection!!, isArabic = isArabic, projectId = activeProjectId)
-                        }
-                    }
-                    if (showSettings) SettingsScreen(isArabic = isArabic)
-                    if (showProjects) ProjectsScreen(isArabic = isArabic, onProjectSelected = { activeProjectId = it })
-                } else {
-                Text(
-                    if (isArabic) "ماذا تريد أن تحسب؟" else "Que voulez-vous calculer ?",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (selectedView == 0) {
-                        Button(onClick = { selectedView = 0 }, modifier = Modifier.weight(1f)) {
-                            Text(if (isArabic) "حسب الأشغال" else "Par travaux")
-                        }
-                    } else {
-                        OutlinedButton(onClick = { selectedView = 0 }, modifier = Modifier.weight(1f)) {
-                            Text(if (isArabic) "حسب الأشغال" else "Par travaux")
-                        }
-                    }
-                    if (selectedView == 1) {
-                        Button(onClick = { selectedView = 1 }, modifier = Modifier.weight(1f)) {
-                            Text(if (isArabic) "مراحل البناء" else "Étapes")
-                        }
-                    } else {
-                        OutlinedButton(onClick = { selectedView = 1 }, modifier = Modifier.weight(1f)) {
-                            Text(if (isArabic) "مراحل البناء" else "Étapes")
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                if (selectedView == 0) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        if (isArabic) "اختر الحاسبة" else "Choisissez un calculateur",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = calculatorSearch,
                         onValueChange = { calculatorSearch = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text(if (isArabic) "ابحث عن حاسبة أو نوع الأشغال" else "Rechercher un calcul ou un travail") },
-                        placeholder = { Text(if (isArabic) "مثال: خرسانة، حفر، طلاء..." else "Ex. béton, terrassement, peinture...") }
+                        label = { Text(if (isArabic) "ابحث عن حاسبة" else "Rechercher un calculateur") },
+                        placeholder = { Text(if (isArabic) "مثال: خرسانة، حديد، طلاء..." else "Ex. béton, ferraillage, peinture...") }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (selectedView == 0) {
-                        val query = calculatorSearch.trim()
-                        val filteredSections = workSections.filter { section ->
-                            query.isBlank() || listOf(section.ar, section.fr, section.descriptionAr, section.descriptionFr)
-                                .any { it.contains(query, ignoreCase = true) }
-                        }
-                        if (filteredSections.isEmpty()) {
-                            item {
-                                Text(
-                                    if (isArabic) "لا توجد حاسبة مطابقة. جرّب كلمة أخرى." else "Aucun calcul correspondant. Essayez un autre terme.",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
-                        }
-                        items(filteredSections) { section ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    if (section.ar == "الخرسانة") showConcreteCalculator = true
-                                    if (section.ar == "الأساسات") showFoundationCalculator = true
-                                    if (section.ar == "الحفر والردم") showEarthworksCalculator = true
-                                    if (section.ar == "الأعمدة والجسور") showColumnBeamCalculator = true
-                                    if (section.ar !in listOf("الخرسانة", "الأساسات", "الحفر والردم", "الأعمدة والجسور")) selectedOtherSection = section.ar
-                                },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        if (isArabic) section.ar else section.fr,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        if (isArabic) section.descriptionAr else section.descriptionFr,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    val query = calculatorSearch.trim()
+                    val filteredSections = workSections.filter { section ->
+                        query.isBlank() || listOf(section.ar, section.fr, section.descriptionAr, section.descriptionFr)
+                            .any { it.contains(query, ignoreCase = true) }
+                    }
+                    if (filteredSections.isEmpty()) {
+                        Text(
+                            if (isArabic) "لا توجد حاسبة مطابقة. جرّب كلمة أخرى." else "Aucun calculateur correspondant. Essayez un autre terme.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     } else {
-                        items(constructionStages) { stage ->
-                            val stageIndex = constructionStages.indexOf(stage)
-                            val stageDescriptionAr = listOf(
-                                "فتح حاسبة الحفر والردم لتقدير الحجوم الأولية.",
-                                "حساب أحجام القواعد والسملات والأساسات.",
-                                "حساب أحجام الخرسانة للأعمدة والجسور.",
-                                "حساب مساحات الجدران وخصم الفتحات.",
-                                "حساب مساحة البلاطة وحجم الخرسانة.",
-                                "حساب مساحات التلبيس والطلاء.",
-                                "حساب مساحة الأرضيات وعدد البلاطات.",
-                                "متابعة الأشغال النهائية من أقسام التشطيبات."
-                            )[stageIndex]
-                            val stageDescriptionFr = listOf(
-                                "Ouvrir le calcul des déblais et remblais.",
-                                "Calculer les volumes géométriques des fondations.",
-                                "Calculer les volumes de béton des poteaux et poutres.",
-                                "Calculer les surfaces des murs avec déduction des ouvertures.",
-                                "Calculer la surface et le volume de la dalle.",
-                                "Calculer les surfaces d’enduit et de peinture.",
-                                "Calculer la surface du sol et le nombre de carreaux.",
-                                "Accéder aux rubriques de finition."
-                            )[stageIndex]
-                            Card(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    showConcreteCalculator = false
-                                    showFoundationCalculator = false
-                                    showEarthworksCalculator = false
-                                    showColumnBeamCalculator = false
-                                    selectedOtherSection = null
-                                    when (stageIndex) {
-                                        0 -> showEarthworksCalculator = true
-                                        1 -> showFoundationCalculator = true
-                                        2 -> showColumnBeamCalculator = true
-                                        3 -> selectedOtherSection = "الجدران والبناء"
-                                        4 -> selectedOtherSection = "السقوف والبلاطات"
-                                        5 -> selectedOtherSection = "التلبيس والطلاء"
-                                        6 -> selectedOtherSection = "الأرضيات والتبليط"
-                                        else -> selectedOtherSection = "التلبيس والطلاء"
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredSections, key = { it.ar }) { section ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                        .testTag("work-section-${section.ar}")
+                                        .clickable {
+                                            when (section.ar) {
+                                                "الخرسانة" -> showConcreteCalculator = true
+                                                "قواعد منفردة" -> selectedFoundationType = 0
+                                                "قواعد شريطية" -> selectedFoundationType = 1
+                                                "السملات والميدات" -> selectedFoundationType = 2
+                                                "الأعمدة" -> selectedColumnBeamType = 0
+                                                "الجسور" -> selectedColumnBeamType = 1
+                                                "الحفر والردم" -> showEarthworksCalculator = true
+                                                else -> selectedOtherSection = section.ar
+                                            }
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize().padding(10.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(section.icon, fontSize = 32.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            if (isArabic) section.ar else section.fr,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            if (isArabic) section.descriptionAr else section.descriptionFr,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2
+                                        )
                                     }
-                                },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        if (isArabic) stage.first else stage.second,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        if (isArabic) stageDescriptionAr else stageDescriptionFr,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        if (isArabic) "اضغط لفتح الحاسبة ←" else "Appuyer pour ouvrir le calculateur →",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
                                 }
                             }
                         }
                     }
                 }
-                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun CalculationExplanation(
+    isArabic: Boolean,
+    formula: String,
+    steps: String,
+    unit: String,
+    note: String
+) {
+    var expanded by remember(formula, steps) { mutableStateOf(true) }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isArabic) "كيف تم الحساب؟" else "Détail du calcul", fontWeight = FontWeight.Bold)
+                Text(if (expanded) if (isArabic) "إخفاء" else "Masquer" else if (isArabic) "عرض" else "Afficher",
+                    modifier = Modifier.clickable { expanded = !expanded }, color = MaterialTheme.colorScheme.primary)
+            }
+            if (expanded) {
+                Text((if (isArabic) "المعادلة: " else "Formule : ") + formula, fontWeight = FontWeight.SemiBold)
+                Text(if (isArabic) "خطوات الحساب:" else "Étapes du calcul :", fontWeight = FontWeight.Medium)
+                Text(steps)
+                Text((if (isArabic) "الوحدة: " else "Unité : ") + unit)
+                Divider()
+                Text((if (isArabic) "ملاحظة: " else "Note : ") + note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -330,18 +336,15 @@ private fun BtpProDzApp() {
 
 @Composable
 private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
-    var elementType by remember { mutableStateOf(0) }
-    var quantityText by remember { mutableStateOf("1") }
-    var lengthText by remember { mutableStateOf("0.30") }
-    var widthText by remember { mutableStateOf("0.30") }
-    var heightText by remember { mutableStateOf("0.30") }
+    var quantityText by remember { mutableStateOf("") }
+    var lengthText by remember { mutableStateOf("") }
+    var widthText by remember { mutableStateOf("") }
+    var heightText by remember { mutableStateOf("") }
     var cementDosageText by remember { mutableStateOf("") }
     var sandDosageText by remember { mutableStateOf("") }
     var gravelDosageText by remember { mutableStateOf("") }
     var wasteText by remember { mutableStateOf("0") }
 
-    val typesAr = listOf("القواعد", "الأعمدة", "الجسور", "البلاطات")
-    val typesFr = listOf("Semelles", "Poteaux", "Poutres", "Dalles")
     val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
@@ -378,22 +381,12 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
         )
     }.getOrNull() else null
 
-    val dimensionLabels = when (elementType) {
-        0 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع / العمق (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur / profondeur (m)")
-        1 -> if (isArabic) listOf("عرض المقطع (م)", "عمق المقطع (م)", "الارتفاع (م)") else listOf("Largeur (m)", "Profondeur (m)", "Hauteur (m)")
-        2 -> if (isArabic) listOf("الطول (م)", "العرض (م)", "الارتفاع (م)") else listOf("Longueur (m)", "Largeur (m)", "Hauteur (m)")
-        else -> if (isArabic) listOf("الطول (م)", "العرض (م)", "السماكة (م)") else listOf("Longueur (m)", "Largeur (m)", "Épaisseur (m)")
-    }
+    val dimensionLabels = if (isArabic)
+        listOf("الطول (م)", "العرض (م)", "الارتفاع / السماكة (م)")
+    else listOf("Longueur (m)", "Largeur (m)", "Hauteur / épaisseur (m)")
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (isArabic) "حساب عدد وحجم العناصر الخرسانية" else "Nombre et volume des éléments en béton", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(if (isArabic) "اختر نوع العنصر" else "Choisissez le type d’élément")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            typesAr.forEachIndexed { index, ar ->
-                if (elementType == index) Button(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
-                else OutlinedButton(onClick = { elementType = index }) { Text(if (isArabic) ar else typesFr[index]) }
-            }
-        }
         NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
         NumberField(dimensionLabels[0], lengthText) { lengthText = it }
         NumberField(dimensionLabels[1], widthText) { widthText = it }
@@ -424,14 +417,13 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
         }
 
         CalculatedQuantityCostEntry("الخرسانة", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
-        Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
+        CalculationExplanation(isArabic, "V = N × L × l × h", if (valid) "V = ${quantity.toInt()} × $length × $width × $height = %.3f m³".format(totalVolume) else "أدخل العدد والأبعاد الصحيحة.", "م³ / m³", "حجم هندسي فقط؛ لا يشمل الهدر أو الأشكال غير المنتظمة.")
     }
 }
 
 
 @Composable
-private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
-    var foundationType by remember { mutableStateOf(0) }
+private fun FoundationCalculator(isArabic: Boolean, projectId: Long?, foundationType: Int) {
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("1.20") }
     var widthText by remember { mutableStateOf("1.20") }
@@ -461,27 +453,15 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
     val totalVolume = foundationResult?.totalVolumeM3?.toDouble() ?: 0.0
     val typesAr = listOf("قواعد منفردة", "قواعد شريطية", "سملات / ميدات")
     val typesFr = listOf("Semelles isolées", "Semelles filantes", "Longrines")
+    val selectedTypeAr = typesAr[foundationType]
+    val selectedTypeFr = typesFr[foundationType]
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة الأساسات" else "Calculateur des fondations",
+            if (isArabic) "حاسبة $selectedTypeAr" else "Calculateur : $selectedTypeFr",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Text(if (isArabic) "نوع الأساس" else "Type de fondation")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            typesAr.forEachIndexed { index, ar ->
-                if (foundationType == index) {
-                    Button(onClick = { foundationType = index }) {
-                        Text(if (isArabic) ar else typesFr[index])
-                    }
-                } else {
-                    OutlinedButton(onClick = { foundationType = index }) {
-                        Text(if (isArabic) ar else typesFr[index])
-                    }
-                }
-            }
-        }
         NumberField(if (isArabic) "العدد" else "Quantité", quantityText) { quantityText = it }
         NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
         NumberField(if (isArabic) "العرض (م)" else "Largeur (m)", widthText) { widthText = it }
@@ -511,10 +491,7 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?) {
             }
         }
         CalculatedQuantityCostEntry("الأساسات", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
-        Text(
-            if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع. هذه حاسبة حجم أولية، ويجب إدخال الأبعاد حسب شكل العنصر." else "Calcul : quantité × longueur × largeur × hauteur. Calcul volumique simple, selon les dimensions de l’élément.",
-            style = MaterialTheme.typography.bodySmall
-        )
+        CalculationExplanation(isArabic, "V = N × L × l × h", if (valid) "حجم الوحدة = $length × $width × $depth = %.3f m³\\nالحجم الإجمالي = %.3f × ${quantity.toInt()} = %.3f m³".format(unitVolume, unitVolume, totalVolume) else "أدخل العدد والأبعاد الصحيحة.", "م³ / m³", "الأبعاد تؤخذ من المخططات؛ هذه كمية هندسية وليست تصميماً إنشائياً.")
     }
 }
 
@@ -616,8 +593,7 @@ private fun EarthworksCalculator(isArabic: Boolean, projectId: Long?) {
 
 
 @Composable
-private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
-    var elementType by remember { mutableStateOf(0) }
+private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?, elementType: Int) {
     var quantityText by remember { mutableStateOf("4") }
     var lengthText by remember { mutableStateOf("3.00") }
     var widthText by remember { mutableStateOf("0.25") }
@@ -627,6 +603,8 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val elementLabelAr = if (elementType == 0) "الأعمدة" else "الجسور"
+    val elementLabelFr = if (elementType == 0) "Poteaux" else "Poutres"
     val countValid = quantity.isFinite() && quantity > 0.0 &&
         quantity % 1.0 == 0.0 && quantity <= Int.MAX_VALUE
     val dimensionsValid = length.isFinite() && length > 0.0 &&
@@ -645,23 +623,10 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            if (isArabic) "حاسبة الأعمدة والجسور" else "Calculateur des poteaux et poutres",
+            if (isArabic) "حاسبة $elementLabelAr" else "Calculateur : $elementLabelFr",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Text(if (isArabic) "اختر نوع العنصر" else "Type d’élément")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (elementType == 0) Button(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الأعمدة" else "Poteaux")
-            } else OutlinedButton(onClick = { elementType = 0 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الأعمدة" else "Poteaux")
-            }
-            if (elementType == 1) Button(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الجسور" else "Poutres")
-            } else OutlinedButton(onClick = { elementType = 1 }, modifier = Modifier.weight(1f)) {
-                Text(if (isArabic) "الجسور" else "Poutres")
-            }
-        }
         NumberField(if (isArabic) "عدد العناصر" else "Nombre d’éléments", quantityText) { quantityText = it }
         NumberField(if (isArabic) "الطول (م)" else "Longueur (m)", lengthText) { lengthText = it }
         NumberField(if (isArabic) "عرض المقطع (م)" else "Largeur de section (m)", widthText) { widthText = it }
@@ -688,7 +653,7 @@ private fun ColumnBeamCalculator(isArabic: Boolean, projectId: Long?) {
                 )
             }
         }
-        CalculatedQuantityCostEntry("الأعمدة والجسور", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
+        CalculatedQuantityCostEntry(elementLabelAr, projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
         Text(
             if (isArabic) "الحساب: عدد العناصر × الطول × عرض المقطع × ارتفاع المقطع. هذه حاسبة حجم الخرسانة فقط وليست حساباً إنشائياً للتسليح أو المقاومة." else "Calcul : nombre × longueur × largeur de section × hauteur de section. Volume de béton uniquement, sans dimensionnement structurel ni calcul des armatures.",
             style = MaterialTheme.typography.bodySmall
@@ -703,34 +668,61 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
     var lengthText by remember(section) { mutableStateOf("5") }
     var widthText by remember(section) { mutableStateOf(if (section == "السلالم") "1.2" else "3") }
     var heightText by remember(section) { mutableStateOf(if (section == "السلالم" || section == "السقوف والبلاطات") "0.15" else "3") }
-    var unitPriceText by remember(section) { mutableStateOf("0") }
     var openingAreaText by remember(section) { mutableStateOf("0") }
+    var unitPriceText by remember(section) { mutableStateOf("0") }
     var tileLengthText by remember(section) { mutableStateOf("0.60") }
     var tileWidthText by remember(section) { mutableStateOf("0.60") }
     var stairStepCountText by remember(section) { mutableStateOf("10") }
     var stairTreadText by remember(section) { mutableStateOf("0.30") }
     var stairRiserText by remember(section) { mutableStateOf("0.17") }
+    var steelDiameterText by remember(section) { mutableStateOf("12") }
 
     val count = countText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val length = lengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val width = widthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val height = heightText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val unitPrice = unitPriceText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val openings = openingAreaText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val unitPrice = unitPriceText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileLength = tileLengthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val tileWidth = tileWidthText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairStepCount = stairStepCountText.toIntOrNull() ?: 0
     val stairTread = stairTreadText.replace(',', '.').toDoubleOrNull() ?: 0.0
     val stairRiser = stairRiserText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val steelDiameterMm = steelDiameterText.replace(',', '.').toDoubleOrNull() ?: 0.0
 
     val isWall = section == "الجدران والبناء"
     val isRoof = section == "السقوف والبلاطات"
     val isFinish = section == "التلبيس والطلاء"
+    val isGeneralFinishes = section == "التشطيبات"
     val isFloor = section == "الأرضيات والتبليط"
     val isStairs = section == "السلالم"
     val isLabor = section == "اليد العاملة"
+    val isFormwork = section == "القوالب"
+    val isSteel = section == "الحديد"
+    val isNetworks = section == "الشبكات"
+
+    // Dedicated quantity modules: column side shutters and straight longitudinal bars.
+    val formworkArea = runCatching {
+        FormworkCalculator.columns(
+            count.toInt(),
+            BigDecimal.valueOf(length),
+            BigDecimal.valueOf(width),
+            BigDecimal.valueOf(height)
+        ).totalAreaM2.toDouble()
+    }.getOrDefault(-1.0)
+    val steelWeightKg = runCatching {
+        RebarCalculator.straightBars(
+            count.toInt(),
+            BigDecimal.valueOf(length),
+            BigDecimal.valueOf(steelDiameterMm)
+        ).totalMassKg.toDouble()
+    }.getOrDefault(-1.0)
+    val networkLengthM = count * length
+    val laborTotal = count * unitPrice
+
     val area = when {
-        isWall || isFinish -> runCatching {
+        isFormwork -> formworkArea
+        isWall || isFinish || isGeneralFinishes -> runCatching {
             SurfaceAreaCalculator.netRectangularArea(
                 count = count.toInt(),
                 lengthM = BigDecimal.valueOf(length),
@@ -762,62 +754,97 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
         else -> 0.0
     }
     val tileCount = if (isFloor && tileLength > 0 && tileWidth > 0) area / (tileLength * tileWidth) else 0.0
-    val laborTotal = if (isLabor && count >= 0 && unitPrice >= 0) count * unitPrice else 0.0
-    val inputsFinite = listOf(count, length, width, height, unitPrice, openings, tileLength, tileWidth, stairTread, stairRiser).all { it.isFinite() }
-    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && laborTotal.isFinite()
+    val inputsFinite = listOf(count, length, width, height, openings, unitPrice, tileLength, tileWidth, stairTread, stairRiser, steelDiameterMm).all { it.isFinite() }
+    val outputsFinite = area.isFinite() && volume.isFinite() && tileCount.isFinite() && steelWeightKg.isFinite() && networkLengthM.isFinite() && laborTotal.isFinite()
+    val integerCountRequired = !isLabor
     val valid = inputsFinite && outputsFinite && count > 0.0 &&
-        (isLabor || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
-        (isLabor || (length > 0.0 && width > 0.0 && height > 0.0)) &&
-        (isLabor || openings >= 0.0) &&
+        (!integerCountRequired || (count % 1.0 == 0.0 && count <= Int.MAX_VALUE)) &&
+        (isLabor || isNetworks || isSteel || (length > 0.0 && width > 0.0 && height > 0.0)) &&
+        (isLabor || isNetworks || isSteel || openings >= 0.0) &&
         (!isFloor || (tileLength > 0.0 && tileWidth > 0.0)) &&
-        (!isLabor || unitPrice >= 0.0) && (!(isWall || isFinish || isFloor || isRoof || isStairs) || area >= 0.0) &&
+        (!isSteel || (length > 0.0 && steelDiameterMm > 0.0)) &&
+        (!isNetworks || length > 0.0) &&
+        (!isLabor || unitPrice >= 0.0) &&
+        (!(isWall || isFinish || isGeneralFinishes || isFloor || isRoof || isStairs || isFormwork) || area >= 0.0) &&
         (!(isRoof || isStairs) || volume >= 0.0) &&
         (!isStairs || (stairStepCount > 0 && stairTread > 0.0 && stairRiser > 0.0))
 
-    val titleAr = section
     val titleFr = when(section) {
         "الجدران والبناء" -> "Maçonnerie"
         "السقوف والبلاطات" -> "Planchers et dalles"
         "التلبيس والطلاء" -> "Enduit et peinture"
         "الأرضيات والتبليط" -> "Revêtements"
+        "القوالب" -> "Coffrage"
+        "الحديد" -> "Ferraillage"
+        "الشبكات" -> "Réseaux"
+        "التشطيبات" -> "Finitions"
         "السلالم" -> "Escaliers"
         else -> "Main-d’œuvre"
     }
 
     val calculatedQuantity = when {
         !valid -> 0.0
+        isSteel -> steelWeightKg
+        isNetworks -> networkLengthM
         isRoof || isStairs -> volume
-        isWall || isFinish || isFloor -> area
+        isWall || isFinish || isGeneralFinishes || isFloor || isFormwork -> area
         else -> 0.0
     }
-    val calculatedUnit = if (isRoof || isStairs) "م³" else "م²"
+    val calculatedUnit = when {
+        isSteel -> "كغ"
+        isNetworks -> "م"
+        isRoof || isStairs -> "م³"
+        else -> "م²"
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (isArabic) titleAr else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) section else titleFr, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        if (!isLabor) {
+            NumberField(
+                if (isArabic) when {
+                    isSteel -> "عدد قضبان الحديد"
+                    isNetworks -> "عدد المسارات / الخطوط"
+                    isFormwork -> "عدد العناصر"
+                    else -> "عدد العناصر / الغرف / المساحات"
+                } else when {
+                    isSteel -> "Nombre de barres"
+                    isNetworks -> "Nombre de parcours / lignes"
+                    isFormwork -> "Nombre d’éléments"
+                    else -> "Nombre d’éléments / pièces / surfaces"
+                },
+                countText
+            ) { countText = it }
+        }
+
         if (isLabor) {
             NumberField(if (isArabic) "عدد وحدات العمل / الأيام / الساعات" else "Nombre d’unités / jours / heures", countText) { countText = it }
             NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", unitPriceText) { unitPriceText = it }
         } else {
-            NumberField(if (isArabic) "عدد العناصر / الغرف / المساحات" else "Nombre d’éléments / pièces / surfaces", countText) { countText = it }
-            NumberField(if (isArabic) if (isStairs) "طول الميل (م)" else "الطول (م)" else if (isStairs) "Longueur inclinée (m)" else "Longueur (m)", lengthText) { lengthText = it }
-            NumberField(if (isArabic) if (isWall || isFinish) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
-            if (isWall || isFinish) {
-                NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
-            } else if (!isStairs && !isRoof) {
-                NumberField(if (isArabic) "البعد الإضافي (م)" else "Dimension supplémentaire (m)", heightText) { heightText = it }
-            }
-            if (isStairs) {
-                NumberField(if (isArabic) "سماكة بطن السلم (م)" else "Épaisseur de paillasse (m)", heightText) { heightText = it }
-                NumberField(if (isArabic) "عدد الدرجات" else "Nombre de marches", stairStepCountText) { stairStepCountText = it }
-                NumberField(if (isArabic) "عمق الدرجة (م)" else "Giron (m)", stairTreadText) { stairTreadText = it }
-                NumberField(if (isArabic) "ارتفاع الدرجة (م)" else "Hauteur de marche (m)", stairRiserText) { stairRiserText = it }
-            }
-            if (isFloor) {
-                NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
-                NumberField(if (isArabic) "عرض البلاطة الواحدة (م)" else "Largeur d’un carreau (m)", tileWidthText) { tileWidthText = it }
-            }
-            if (isRoof) {
-                NumberField(if (isArabic) "السماكة (م)" else "Épaisseur (m)", heightText) { heightText = it }
+            NumberField(if (isArabic) when { isSteel -> "طول القضيب الواحد (م)"; isNetworks -> "طول المسار (م)"; isStairs -> "طول الميل (م)"; isFormwork -> "عرض العمود A (م)"; else -> "الطول (م)" } else when { isSteel -> "Longueur d’une barre (m)"; isNetworks -> "Longueur du parcours (m)"; isStairs -> "Longueur inclinée (m)"; isFormwork -> "Côté A du poteau (m)"; else -> "Longueur (m)" }, lengthText) { lengthText = it }
+            if (isSteel) {
+                NumberField(if (isArabic) "قطر القضيب (مم)" else "Diamètre de la barre (mm)", steelDiameterText) { steelDiameterText = it }
+            } else if (isFormwork) {
+                NumberField(if (isArabic) "عرض العمود B (م)" else "Côté B du poteau (m)", widthText) { widthText = it }
+                NumberField(if (isArabic) "ارتفاع العمود (م)" else "Hauteur du poteau (m)", heightText) { heightText = it }
+            } else if (isNetworks) {
+                Text(if (isArabic) "أدخل الطول الإجمالي لكل مسار؛ نوع الشبكة يحدد في وصف بند التكلفة." else "Saisissez la longueur de chaque parcours ; précisez le type de réseau dans le coût.")
+            } else {
+                NumberField(if (isArabic) if (isWall || isFinish || isGeneralFinishes) "الارتفاع (م)" else "العرض (م)" else if (isWall || isFinish || isGeneralFinishes) "Hauteur (m)" else "Largeur (m)", widthText) { widthText = it }
+                if (isWall || isFinish || isGeneralFinishes) {
+                    NumberField(if (isArabic) "المساحة الإجمالية للفتحات (م²)" else "Surface totale des ouvertures (m²)", openingAreaText) { openingAreaText = it }
+                }
+                if (isRoof || isStairs) {
+                    NumberField(if (isArabic) if (isRoof) "السماكة (م)" else "سماكة بطن السلم (م)" else if (isRoof) "Épaisseur (m)" else "Épaisseur de paillasse (m)", heightText) { heightText = it }
+                }
+                if (isStairs) {
+                    NumberField(if (isArabic) "عدد الدرجات" else "Nombre de marches", stairStepCountText) { stairStepCountText = it }
+                    NumberField(if (isArabic) "عمق الدرجة (م)" else "Giron (m)", stairTreadText) { stairTreadText = it }
+                    NumberField(if (isArabic) "ارتفاع الدرجة (م)" else "Hauteur de marche (m)", stairRiserText) { stairRiserText = it }
+                }
+                if (isFloor) {
+                    NumberField(if (isArabic) "طول البلاطة الواحدة (م)" else "Longueur d’un carreau (m)", tileLengthText) { tileLengthText = it }
+                    NumberField(if (isArabic) "عرض البلاطة الواحدة (م)" else "Largeur d’un carreau (m)", tileWidthText) { tileWidthText = it }
+                }
             }
         }
 
@@ -829,9 +856,10 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
                         Text(if (isArabic) "إجمالي وحدات العمل: ${if (valid) "%.2f".format(count) else "—"}" else "Total des unités : ${if (valid) "%.2f".format(count) else "—"}")
                         Text(if (isArabic) "التكلفة الإجمالية: ${if (valid) "%.2f".format(laborTotal) else "—"} دج" else "Coût total : ${if (valid) "%.2f".format(laborTotal) else "—"} DA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
-                    isStairs -> {
-                        Text(if (isArabic) "حجم خرسانة السلم التقديري: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume estimé de béton de l’escalier : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
+                    isSteel -> Text(if (isArabic) "وزن الحديد التقريبي: ${if (valid) "%.2f".format(steelWeightKg) else "—"} كغ" else "Poids estimé : ${if (valid) "%.2f".format(steelWeightKg) else "—"} kg", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isNetworks -> Text(if (isArabic) "الطول الإجمالي للشبكة: ${if (valid) "%.2f".format(networkLengthM) else "—"} م" else "Longueur totale du réseau : ${if (valid) "%.2f".format(networkLengthM) else "—"} m", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isFormwork -> Text(if (isArabic) "مساحة القوالب التقديرية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface estimée du coffrage : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    isStairs -> Text(if (isArabic) "حجم خرسانة السلم التقديري: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume estimé de béton de l’escalier : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     isRoof -> {
                         Text(if (isArabic) "المساحة: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface : ${if (valid) "%.3f".format(area) else "—"} m²")
                         Text(if (isArabic) "حجم الخرسانة: ${if (valid) "%.3f".format(volume) else "—"} م³" else "Volume de béton : ${if (valid) "%.3f".format(volume) else "—"} m³", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -843,22 +871,29 @@ private fun OtherWorkCalculator(section: String, isArabic: Boolean, projectId: L
                     else -> Text(if (isArabic) "المساحة الصافية: ${if (valid) "%.3f".format(area) else "—"} م²" else "Surface nette : ${if (valid) "%.3f".format(area) else "—"} m²", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 if (!valid) Text(
-                    if (isArabic) "راجع المدخلات: يجب أن تكون الأبعاد والأعداد موجبة، وألا تتجاوز الفتحات مساحة الجدار." else "Vérifiez les données : valeurs positives et ouvertures inférieures à la surface du mur.",
+                    if (isArabic) "راجع المدخلات: تأكد من أن الأعداد والأبعاد والفتحات وقطر الحديد صالحة." else "Vérifiez les quantités, dimensions, ouvertures et diamètre des barres.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
-        if (!isLabor) {
-            CalculatedQuantityCostEntry(section, projectId, calculatedQuantity, calculatedUnit, isArabic)
-        }
+        if (!isLabor) CalculatedQuantityCostEntry(section, projectId, calculatedQuantity, calculatedUnit, isArabic)
         Text(
-            if (isArabic) "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ. في حساب اليد العاملة، أدخل عدد الوحدات وسعر الوحدة المناسب." else "Estimations de quantités. Hors pertes, spécifications des matériaux et détails d’exécution. Pour la main-d’œuvre, saisissez le nombre d’unités et le prix unitaire.",
+            if (isArabic) when {
+                isSteel -> "وزن تقريبي باستعمال d²/162 كغ لكل متر؛ لا يغني عن جدول الثني والتفاصيل الإنشائية."
+                isFormwork -> "قوالب الأعمدة: محيط المقطع × ارتفاع العمود × العدد. لا يشمل القاعدة أو رأس العمود أو الهدر أو التدعيم."
+                isNetworks -> "الكمية طولية تقديرية؛ حدّد نوع الشبكة ومواصفاتها في وصف بند التكلفة."
+                else -> "هذه نتائج كميات أولية. لا تشمل نسب الهدر أو مواصفات المواد أو تفاصيل التنفيذ."
+            } else when {
+                isSteel -> "Poids indicatif selon d²/162 kg par mètre ; ne remplace pas le plan de façonnage."
+                isFormwork -> "Poteaux : périmètre de section × hauteur × nombre. Hors base, tête, pertes et étaiement."
+                isNetworks -> "Quantité linéaire estimative ; précisez le type et les spécifications du réseau."
+                else -> "Estimations de quantités, hors pertes et détails d’exécution."
+            },
             style = MaterialTheme.typography.bodySmall
         )
     }
 }
-
 
 
 @Composable
@@ -886,12 +921,19 @@ private fun CostEstimatorSection(section: String, isArabic: Boolean, projectId: 
         Divider()
         Text(if (isArabic) "تكلفة المواد — $section" else "Coût des matériaux — ${when(section) {
             "الخرسانة" -> "Béton"
-            "الأساسات" -> "Fondations"
-            "الأعمدة والجسور" -> "Poteaux et poutres"
+            "قواعد منفردة" -> "Semelles isolées"
+            "قواعد شريطية" -> "Semelles filantes"
+            "السملات والميدات" -> "Longrines"
+            "الأعمدة" -> "Poteaux"
+            "الجسور" -> "Poutres"
             "الجدران والبناء" -> "Maçonnerie"
             "السقوف والبلاطات" -> "Planchers et dalles"
             "التلبيس والطلاء" -> "Enduit et peinture"
             "الأرضيات والتبليط" -> "Revêtements"
+            "القوالب" -> "Coffrage"
+            "الحديد" -> "Ferraillage"
+            "الشبكات" -> "Réseaux"
+            "التشطيبات" -> "Finitions"
             "الحفر والردم" -> "Terrassement"
             "السلالم" -> "Escaliers"
             else -> "Main-d’œuvre"
@@ -979,10 +1021,29 @@ private fun LaborCostSection(section: String, isArabic: Boolean, projectId: Long
         rate.unitPrice.isFinite() && rate.unitPrice >= 0.0 && calculatedTotal.isFinite() &&
         projectId != null
     val total = costs.sumOf { it.totalCost }
+    val sectionLabelFr = when (section) {
+        "قواعد منفردة" -> "Semelles isolées"
+        "قواعد شريطية" -> "Semelles filantes"
+        "السملات والميدات" -> "Longrines"
+        "الأعمدة" -> "Poteaux"
+        "الجسور" -> "Poutres"
+        "الخرسانة" -> "Béton"
+        "الجدران والبناء" -> "Maçonnerie"
+        "السقوف والبلاطات" -> "Planchers et dalles"
+        "التلبيس والطلاء" -> "Enduit et peinture"
+        "الأرضيات والتبليط" -> "Revêtements"
+        "القوالب" -> "Coffrage"
+        "الحديد" -> "Ferraillage"
+        "الشبكات" -> "Réseaux"
+        "التشطيبات" -> "Finitions"
+        "الحفر والردم" -> "Terrassement"
+        "السلالم" -> "Escaliers"
+        else -> section
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (projectId == null) Text(if (isArabic) "اختر مشروعاً من شاشة المشاريع قبل تسجيل التكاليف." else "Sélectionnez un projet dans l’écran Projets avant d’enregistrer des coûts.", color = MaterialTheme.colorScheme.error)
         Divider()
-        Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + section, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(if (isArabic) "تكلفة اليد العاملة — " + section else "Coût de main-d’œuvre — " + sectionLabelFr, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (rates.isEmpty()) Text(if (isArabic) "أضف أسعار المهن من الإعدادات أولاً." else "Ajoutez les tarifs des métiers dans les paramètres.")
         rates.forEach { item ->
             val label = item.tradeName + " — " + item.unitPrice + " دج / " + item.unit
@@ -1222,6 +1283,10 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     var showSavedResults by remember { mutableStateOf(true) }
     var selectedDevisId by remember { mutableStateOf<Long?>(null) }
     var devisMessage by remember { mutableStateOf<String?>(null) }
+    var editingDevisLine by remember { mutableStateOf<DevisLineEntity?>(null) }
+    var editQuantityText by remember { mutableStateOf("") }
+    var editUnitPriceText by remember { mutableStateOf("") }
+    var pendingDeleteDevisId by remember { mutableStateOf<Long?>(null) }
 
     val selectedLinesFlow = remember(selectedDevisId) {
         selectedDevisId?.let { dao.observeDevisLines(it) } ?: flowOf(emptyList())
@@ -1229,18 +1294,37 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
     val selectedLines by selectedLinesFlow.collectAsState(initial = emptyList())
     var exportMessage by remember { mutableStateOf<String?>(null) }
     val selectedDocument = devisList.firstOrNull { it.id == selectedDevisId }
-    val reportTitle = selectedDocument?.let { "${it.projectNameSnapshot} - Devis ${it.id}" }
-        ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
+    val reportTitle = selectedDocument?.let { document ->
+        val client = document.clientNameSnapshot.takeIf { it.isNotBlank() }?.let {
+            (if (isArabic) "الزبون: " else "Client: ") + it + " - "
+        }.orEmpty()
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+            .format(java.util.Date(document.createdAt))
+        "${document.projectNameSnapshot} - ${client}${if (isArabic) "عرض سعر" else "Devis"} ${document.id} - $date"
+    } ?: selectedProject?.let { it.name + if (isArabic) " - النتائج" else " - Résultats" }
         ?: "Btp Pro Dz"
+    val reportSummary = selectedDocument?.let { document ->
+        ProjectReportSummary(
+            materialsLabel = if (isArabic) "مجموع المواد HT" else "Matériaux HT",
+            materialsHt = document.totalMaterials,
+            laborLabel = if (isArabic) "مجموع اليد العاملة HT" else "Main-d’œuvre HT",
+            laborHt = document.totalLabor,
+            totalHtLabel = if (isArabic) "المجموع HT" else "Total HT",
+            totalHt = document.totalHt,
+            tvaLabel = "TVA",
+            tvaPercent = document.tvaPercent,
+            tvaAmount = document.tvaAmount,
+            totalTtcLabel = if (isArabic) "المجموع TTC" else "Total TTC",
+            totalTtc = document.totalTtc
+        )
+    }
     val reportRows = remember(selectedLines, selectedDocument, materialCosts, laborCosts, selectedProject, isArabic) {
         buildList {
             if (selectedDocument != null) {
                 selectedLines.forEach { line ->
                     add(ProjectReportRow(line.description, line.quantity, line.unit, line.unitPrice, line.total))
                 }
-                add(ProjectReportRow(if (isArabic) "المجموع HT" else "Total HT", 1.0, "DA", selectedDocument.totalHt, selectedDocument.totalHt))
-                add(ProjectReportRow(if (isArabic) "TVA ${selectedDocument.tvaPercent}%" else "TVA ${selectedDocument.tvaPercent}%", 1.0, "DA", selectedDocument.tvaAmount, selectedDocument.tvaAmount))
-                add(ProjectReportRow(if (isArabic) "المجموع TTC" else "Total TTC", 1.0, "DA", selectedDocument.totalTtc, selectedDocument.totalTtc))
+
             } else {
                 materialCosts.forEach { line ->
                     add(ProjectReportRow("${line.section} — ${line.materialName}", line.quantity, line.unit, line.unitPriceSnapshot, line.totalCost))
@@ -1256,7 +1340,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             exportMessage = runCatching {
                 withContext(Dispatchers.IO) {
                     val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open PDF destination.")
-                    stream.use { ProjectReportExporter.writePdf(reportTitle, reportRows, it) }
+                    stream.use { ProjectReportExporter.writePdf(reportTitle, reportRows, it, reportSummary) }
                 }
                 if (isArabic) "تم حفظ PDF بنجاح." else "PDF export saved."
             }.getOrElse { (if (isArabic) "فشل تصدير PDF: " else "PDF export failed: ") + (it.message ?: "Unknown error") }
@@ -1267,7 +1351,7 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
             exportMessage = runCatching {
                 withContext(Dispatchers.IO) {
                     val stream = context.contentResolver.openOutputStream(uri) ?: error("Cannot open Excel destination.")
-                    stream.use { ProjectReportExporter.writeExcel(reportTitle, reportRows, it) }
+                    stream.use { ProjectReportExporter.writeExcel(reportTitle, reportRows, it, reportSummary) }
                 }
                 if (isArabic) "تم حفظ Excel بنجاح." else "Excel export saved."
             }.getOrElse { (if (isArabic) "فشل تصدير Excel: " else "Excel export failed: ") + (it.message ?: "Unknown error") }
@@ -1437,8 +1521,8 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         if (totals == null) {
                             devisMessage = if (isArabic) "تعذر إنشاء Devis: توجد كميات أو أسعار غير صالحة. راجع البنود ونسبة TVA." else "Devis impossible : quantités, prix ou TVA invalides."
                         } else {
-                            val documentId = dao.insertDevis(
-                                DevisDocumentEntity(
+                            val documentId = dao.insertDevisWithLines(
+                                document = DevisDocumentEntity(
                                     projectId = selectedProject.id,
                                     projectNameSnapshot = selectedProject.name,
                                     clientNameSnapshot = selectedProject.clientName,
@@ -1448,9 +1532,9 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                                     tvaPercent = totals.tvaPercent.toDouble(),
                                     tvaAmount = totals.tvaAmount.toDouble(),
                                     totalTtc = totals.totalTtc.toDouble()
-                                )
+                                ),
+                                lines = rows
                             )
-                            dao.insertDevisLines(rows.map { it.copy(devisId = documentId) })
                             selectedDevisId = documentId
                             devisMessage = if (isArabic) "تم إنشاء وثيقة Devis وحفظ تفاصيلها." else "Le devis et ses lignes ont été enregistrés."
                         }
@@ -1472,8 +1556,13 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                         Text("HT : " + "%.2f".format(doc.totalHt) + " DA")
                         Text("TVA (" + doc.tvaPercent + "%) : " + "%.2f".format(doc.tvaAmount) + " DA")
                         Text("TTC : " + "%.2f".format(doc.totalTtc) + " DA", fontWeight = FontWeight.Bold)
-                        OutlinedButton(onClick = { selectedDevisId = if (selectedDevisId == doc.id) null else doc.id }) {
-                            Text(if (selectedDevisId == doc.id) { if (isArabic) "إخفاء البنود" else "Masquer les lignes" } else { if (isArabic) "عرض تفاصيل البنود" else "Voir les lignes" })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { selectedDevisId = if (selectedDevisId == doc.id) null else doc.id }) {
+                                Text(if (selectedDevisId == doc.id) { if (isArabic) "إخفاء البنود" else "Masquer les lignes" } else { if (isArabic) "عرض تفاصيل البنود" else "Voir les lignes" })
+                            }
+                            OutlinedButton(onClick = { pendingDeleteDevisId = doc.id }) {
+                                Text(if (isArabic) "حذف الوثيقة" else "Supprimer")
+                            }
                         }
                     }
                 }
@@ -1498,10 +1587,90 @@ private fun ProjectsScreen(isArabic: Boolean, onProjectSelected: (Long) -> Unit)
                             Text((if (line.category == "LABOR") { if (isArabic) "اليد العاملة" else "Main-d’œuvre" } else { if (isArabic) "المواد" else "Matériaux" }) + " — " + line.section, fontWeight = FontWeight.SemiBold)
                             Text(line.description)
                             Text(line.quantity.toString() + " " + line.unit + " × " + "%.2f".format(line.unitPrice) + " = " + "%.2f".format(line.total) + " DA")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = {
+                                    editingDevisLine = line
+                                    editQuantityText = line.quantity.toString()
+                                    editUnitPriceText = line.unitPrice.toString()
+                                }) { Text(if (isArabic) "تعديل" else "Modifier") }
+                                OutlinedButton(onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            database.withTransaction {
+                                                dao.deleteDevisLine(line.id, line.devisId)
+                                                dao.recalculateDevisDocument(line.devisId)
+                                            }
+                                        }.onFailure { devisMessage = (if (isArabic) "تعذر حذف البند: " else "Suppression impossible : ") + (it.message ?: "Erreur") }
+                                    }
+                                }) { Text(if (isArabic) "حذف" else "Supprimer") }
+                            }
                         }
                     }
                 }
             }
+        }
+        if (editingDevisLine != null) {
+            val line = editingDevisLine!!
+            val quantity = editQuantityText.replace(',', '.').toBigDecimalOrNull()
+            val unitPrice = editUnitPriceText.replace(',', '.').toBigDecimalOrNull()
+            val validEdit = quantity != null && unitPrice != null && quantity > BigDecimal.ZERO &&
+                unitPrice >= BigDecimal.ZERO && quantity.toDouble().isFinite() && unitPrice.toDouble().isFinite() &&
+                quantity.multiply(unitPrice).toDouble().isFinite()
+            AlertDialog(
+                onDismissRequest = { editingDevisLine = null },
+                title = { Text(if (isArabic) "تعديل بند Devis" else "Modifier la ligne") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(line.description)
+                        NumberField(if (isArabic) "الكمية" else "Quantité", editQuantityText) { editQuantityText = it }
+                        NumberField(if (isArabic) "سعر الوحدة (دج)" else "Prix unitaire (DA)", editUnitPriceText) { editUnitPriceText = it }
+                        Text((if (isArabic) "المجموع الجديد: " else "Nouveau total : ") + (quantity?.multiply(unitPrice ?: BigDecimal.ZERO)?.setScale(2, java.math.RoundingMode.HALF_UP)?.toPlainString() ?: "—") + if (isArabic) " دج" else " DA")
+                    }
+                },
+                confirmButton = {
+                    Button(enabled = validEdit, onClick = {
+                        val q = quantity!!
+                        val p = unitPrice!!
+                        val total = q.multiply(p).setScale(2, java.math.RoundingMode.HALF_UP)
+                        scope.launch {
+                            runCatching {
+                                database.withTransaction {
+                                    dao.updateDevisLine(line.copy(quantity = q.toDouble(), unitPrice = p.toDouble(), total = total.toDouble()))
+                                    dao.recalculateDevisDocument(line.devisId)
+                                }
+                            }.onSuccess {
+                                editingDevisLine = null
+                                devisMessage = if (isArabic) "تم تعديل البند وتحديث المجاميع." else "Ligne modifiée et totaux actualisés."
+                            }.onFailure { devisMessage = (if (isArabic) "تعذر التعديل: " else "Modification impossible : ") + (it.message ?: "Erreur") }
+                        }
+                    }) { Text(if (isArabic) "حفظ التعديل" else "Enregistrer") }
+                },
+                dismissButton = { OutlinedButton(onClick = { editingDevisLine = null }) { Text(if (isArabic) "إلغاء" else "Annuler") } }
+            )
+        }
+        pendingDeleteDevisId?.let { id ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteDevisId = null },
+                title = { Text(if (isArabic) "حذف وثيقة Devis؟" else "Supprimer ce devis ?") },
+                text = { Text(if (isArabic) "سيتم حذف الوثيقة وبنودها المحفوظة. لا يمكن التراجع عن هذا الإجراء." else "Le document et toutes ses lignes seront supprimés. Cette action est irréversible.") },
+                confirmButton = {
+                    Button(onClick = {
+                        scope.launch {
+                            runCatching {
+                                database.withTransaction {
+                                    dao.deleteAllDevisLines(id)
+                                    dao.deleteDevisDocument(id)
+                                }
+                            }.onSuccess {
+                                if (selectedDevisId == id) selectedDevisId = null
+                                pendingDeleteDevisId = null
+                                devisMessage = if (isArabic) "تم حذف وثيقة Devis." else "Devis supprimé."
+                            }.onFailure { devisMessage = (if (isArabic) "تعذر الحذف: " else "Suppression impossible : ") + (it.message ?: "Erreur") }
+                        }
+                    }) { Text(if (isArabic) "تأكيد الحذف" else "Confirmer") }
+                },
+                dismissButton = { OutlinedButton(onClick = { pendingDeleteDevisId = null }) { Text(if (isArabic) "إلغاء" else "Annuler") } }
+            )
         }
         Text(if (isArabic) "تُحفظ تفاصيل كل Devis بصورة مستقلة؛ التعديلات اللاحقة على أسعار المواد أو أجور العمال لا تغيّر الوثائق السابقة." else "Chaque devis conserve ses propres lignes ; les modifications ultérieures des tarifs ne changent pas les documents existants.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -1528,7 +1697,7 @@ private fun CalculatedQuantityCostEntry(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Divider()
         Text(
-            if (isArabic) "إضافة الكمية المحسوبة إلى المشروع وDevis" else "Ajouter la quantité calculée au projet et au devis",
+            if (isArabic) "تسجيل الكمية والتكلفة في المشروع" else "Enregistrer la quantité et le coût dans le projet",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -1538,11 +1707,21 @@ private fun CalculatedQuantityCostEntry(
                 color = MaterialTheme.colorScheme.error
             )
         } else {
-            Text(if (isArabic) "الكمية المحسوبة: ${"%.3f".format(quantity)} $unit" else "Quantité calculée : ${"%.3f".format(quantity)} $unit")
+            Text(if (isArabic) "الكمية المحسوبة التي ستُسجّل: ${"%.3f".format(quantity)} $unit" else "Quantité calculée à enregistrer : ${"%.3f".format(quantity)} $unit")
+            Text(
+                if (isArabic) "الخطوة 1: أدخل سعر وحدة واحدة بالدينار. سيحسب التطبيق التكلفة تلقائياً." else "Étape 1 : saisissez le prix d’une unité en DA. Le coût sera calculé automatiquement.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             NumberField(if (isArabic) "سعر الوحدة (دج / $unit)" else "Prix unitaire (DA / $unit)", unitPriceText) { unitPriceText = it }
             Text(
-                if (isArabic) "المجموع: ${if (total.isFinite()) "%.2f".format(total) else "—"} دج" else "Total : ${if (total.isFinite()) "%.2f".format(total) else "—"} DA",
+                if (isArabic) "تكلفة هذا البند: ${if (total.isFinite()) "%.2f".format(total) else "أدخل سعر الوحدة"} دج" else "Coût de cette ligne : ${if (total.isFinite()) "%.2f".format(total) else "Saisissez le prix unitaire"} DA",
                 fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                if (isArabic) "الخطوة 2: اضغط حفظ لتسجيل الكمية والتكلفة في المشروع فقط. الخطوة 3: افتح «المشاريع وDevis» ثم أنشئ Devis لإدراج البنود المسجلة." else "Étape 2 : enregistrez cette quantité et son coût dans le projet. Étape 3 : ouvrez « Projets et devis » puis créez un devis pour y inclure les lignes enregistrées.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Button(
                 onClick = {
@@ -1561,7 +1740,7 @@ private fun CalculatedQuantityCostEntry(
                                 )
                             )
                         }.onSuccess {
-                            message = if (isArabic) "تم حفظ الكمية والتكلفة في المشروع. أنشئ Devis من شاشة المشاريع لإدراجها." else "Quantité et coût enregistrés. Créez le devis depuis l’écran Projets."
+                            message = if (isArabic) "تم الحفظ في تكاليف المشروع فقط. انتقل إلى «المشاريع وDevis» ثم اضغط «إنشاء Devis من التكاليف المسجلة»." else "Enregistré dans les coûts du projet. Ouvrez « Projets et devis », puis appuyez sur « Créer un devis à partir des coûts enregistrés »."
                             unitPriceText = ""
                         }.onFailure {
                             message = (if (isArabic) "تعذر الحفظ: " else "Échec : ") + (it.message ?: "Erreur")
@@ -1570,7 +1749,7 @@ private fun CalculatedQuantityCostEntry(
                 },
                 enabled = canSave,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text(if (isArabic) "حفظ الكمية والتكلفة للمشروع" else "Enregistrer quantité et coût") }
+            ) { Text(if (isArabic) "حفظ بند التكلفة في المشروع" else "Enregistrer le coût dans le projet") }
         }
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
     }

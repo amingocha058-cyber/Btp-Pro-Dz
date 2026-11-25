@@ -14,6 +14,8 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
+import androidx.room.Update
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "app_settings")
@@ -194,11 +196,67 @@ interface AppDataDao {
     @Insert
     suspend fun insertDevisLines(lines: List<DevisLineEntity>)
 
+    @Transaction
+    suspend fun insertDevisWithLines(document: DevisDocumentEntity, lines: List<DevisLineEntity>): Long {
+        val documentId = insertDevis(document)
+        insertDevisLines(lines.map { it.copy(devisId = documentId) })
+        return documentId
+    }
+
     @Query("SELECT * FROM devis_documents WHERE projectId = :projectId ORDER BY createdAt DESC")
     fun observeDevis(projectId: Long): Flow<List<DevisDocumentEntity>>
 
     @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
     fun observeDevisLines(devisId: Long): Flow<List<DevisLineEntity>>
+
+    @Query("SELECT * FROM devis_lines WHERE devisId = :devisId ORDER BY id")
+    suspend fun getDevisLines(devisId: Long): List<DevisLineEntity>
+
+    @Query("SELECT * FROM devis_documents WHERE id = :devisId LIMIT 1")
+    suspend fun getDevisDocument(devisId: Long): DevisDocumentEntity?
+
+    /**
+     * Rebuilds the saved financial snapshot from persisted lines.
+     * Call inside a Room transaction after editing or deleting a line.
+     */
+    @Transaction
+    suspend fun recalculateDevisDocument(devisId: Long) {
+        val document = getDevisDocument(devisId) ?: return
+        val lines = getDevisLines(devisId)
+        val materials = java.math.BigDecimal.valueOf(
+            lines.filter { it.category == "MATERIAL" }.sumOf { it.total }
+        ).setScale(2, java.math.RoundingMode.HALF_UP)
+        val labor = java.math.BigDecimal.valueOf(
+            lines.filter { it.category == "LABOR" }.sumOf { it.total }
+        ).setScale(2, java.math.RoundingMode.HALF_UP)
+        val ht = materials.add(labor).setScale(2, java.math.RoundingMode.HALF_UP)
+        val vat = ht.multiply(java.math.BigDecimal.valueOf(document.tvaPercent))
+            .divide(java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP)
+        updateDevisDocument(
+            document.copy(
+                totalMaterials = materials.toDouble(),
+                totalLabor = labor.toDouble(),
+                totalHt = ht.toDouble(),
+                tvaAmount = vat.toDouble(),
+                totalTtc = ht.add(vat).setScale(2, java.math.RoundingMode.HALF_UP).toDouble()
+            )
+        )
+    }
+
+    @Update
+    suspend fun updateDevisLine(line: DevisLineEntity)
+
+    @Update
+    suspend fun updateDevisDocument(document: DevisDocumentEntity)
+
+    @Query("DELETE FROM devis_lines WHERE id = :lineId AND devisId = :devisId")
+    suspend fun deleteDevisLine(lineId: Long, devisId: Long): Int
+
+    @Query("DELETE FROM devis_lines WHERE devisId = :devisId")
+    suspend fun deleteAllDevisLines(devisId: Long)
+
+    @Query("DELETE FROM devis_documents WHERE id = :devisId")
+    suspend fun deleteDevisDocument(devisId: Long): Int
 
     @Query("SELECT * FROM calculation_costs WHERE projectId = :projectId ORDER BY section, recordedAt")
     suspend fun materialCostLinesForProject(projectId: Long): List<CalculationCostEntity>

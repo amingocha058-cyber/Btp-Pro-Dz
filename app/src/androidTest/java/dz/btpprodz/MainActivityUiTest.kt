@@ -1,13 +1,16 @@
 package dz.btpprodz
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.onFirst
 import org.junit.Rule
 import org.junit.Test
 
@@ -16,25 +19,33 @@ class MainActivityUiTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun homeScreenShowsConstructionSections() {
+    fun homeScreenShowsFlatTwoColumnCalculatorGrid() {
         composeRule.onNodeWithText("Btp Pro Dz").assertIsDisplayed()
-        composeRule.onNodeWithText("ماذا تريد أن تحسب؟").assertIsDisplayed()
+        composeRule.onNodeWithText("اختر الحاسبة").assertIsDisplayed()
         composeRule.onNodeWithText("الخرسانة").assertIsDisplayed()
-        composeRule.onNodeWithText("الأساسات").assertIsDisplayed()
+        composeRule.onNodeWithText("قواعد منفردة").assertIsDisplayed()
+        composeRule.onAllNodesWithText("حسب الأشغال").assertCountEquals(0)
+        composeRule.onAllNodesWithText("مراحل البناء").assertCountEquals(0)
     }
 
     @Test
     fun calculatorSearchFiltersConstructionSections() {
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").assertIsDisplayed()
-        composeRule.onNodeWithText("ابحث عن حاسبة أو نوع الأشغال").performTextInput("الحفر")
+        composeRule.onNodeWithText("ابحث عن حاسبة").assertIsDisplayed()
+        composeRule.onNodeWithText("ابحث عن حاسبة").performTextInput("الحفر")
         composeRule.onNodeWithText("الحفر والردم").assertIsDisplayed()
-        composeRule.onNodeWithText("الخرسانة").assertDoesNotExist()
+        composeRule.onAllNodesWithText("الخرسانة").assertCountEquals(0)
     }
 
     @Test
     fun concreteCalculatorOpensAndShowsCalculatedResult() {
         composeRule.onNodeWithText("الخرسانة").performClick()
         composeRule.onNodeWithText("حساب عدد وحجم العناصر الخرسانية").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
+
+        composeRule.onNodeWithText("عدد العناصر").performScrollTo().performTextInput("1")
+        composeRule.onNodeWithText("الطول (م)").performScrollTo().performTextInput("0.3")
+        composeRule.onNodeWithText("العرض (م)").performScrollTo().performTextInput("0.3")
+        composeRule.onNodeWithText("الارتفاع / السماكة (م)").performScrollTo().performTextInput("0.3")
 
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
@@ -50,8 +61,10 @@ class MainActivityUiTest {
 
     @Test
     fun foundationCalculatorOpensAndShowsResultCard() {
-        composeRule.onNodeWithText("الأساسات").performClick()
-        composeRule.onNodeWithText("حاسبة الأساسات").assertIsDisplayed()
+        composeRule.onNodeWithText("قواعد منفردة").performClick()
+        composeRule.onNodeWithText("حاسبة قواعد منفردة").assertIsDisplayed()
+        composeRule.onAllNodesWithText("قواعد شريطية").assertCountEquals(0)
+        composeRule.onAllNodesWithText("سملات / ميدات").assertCountEquals(0)
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
@@ -64,15 +77,18 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("FR").performClick()
         composeRule.onNodeWithText("Calculs de construction et d’ingénierie").assertIsDisplayed()
         composeRule.onNodeWithText("Béton").performClick()
-        composeRule.onNodeWithText("Retour aux rubriques").assertIsDisplayed()
-        composeRule.onNodeWithText("Retour aux rubriques").performClick()
-        composeRule.onNodeWithText("Que voulez-vous calculer ?").assertIsDisplayed()
+        composeRule.onNodeWithText("Retour aux calculateurs").assertIsDisplayed()
+        composeRule.onNodeWithText("Retour aux calculateurs").performClick()
+        composeRule.onNodeWithText("Choisissez un calculateur").assertIsDisplayed()
     }
 
     @Test
     fun earthworksExcavationDisplaysExpectedVolume() {
+        // The section is below the initial LazyColumn viewport; filter it into the
+        // composed list before locating and opening it.
+        composeRule.onNodeWithText("ابحث عن حاسبة")
+            .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
-        earthworksSection.performScrollTo()
         earthworksSection.assertIsDisplayed()
         earthworksSection.performClick()
         composeRule.onNodeWithText("حاسبة الحفر والردم").assertIsDisplayed()
@@ -83,8 +99,10 @@ class MainActivityUiTest {
 
     @Test
     fun earthworksResultUpdatesWhenDimensionChanges() {
+        // Search first so LazyColumn composes the off-screen section.
+        composeRule.onNodeWithText("ابحث عن حاسبة")
+            .performTextInput("الحفر")
         val earthworksSection = composeRule.onNodeWithText("الحفر والردم")
-        earthworksSection.performScrollTo()
         earthworksSection.assertIsDisplayed()
         earthworksSection.performClick()
         val length = composeRule.onNodeWithText("الطول (م)")
@@ -96,12 +114,124 @@ class MainActivityUiTest {
     }
 
     @Test
-    fun columnsAndBeamsDisplaysExpectedConcreteVolume() {
-        composeRule.onNodeWithText("الأعمدة والجسور").performClick()
-        composeRule.onNodeWithText("حاسبة الأعمدة والجسور").assertIsDisplayed()
+    fun columnsCalculatorDisplaysExpectedConcreteVolume() {
+        composeRule.onNodeWithText("الأعمدة").performClick()
+        composeRule.onNodeWithText("حاسبة الأعمدة").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
         val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
         result.performScrollTo()
         result.assertIsDisplayed()
+    }
+
+    @Test
+    fun beamsCalculatorDisplaysExpectedConcreteVolume() {
+        composeRule.onNodeWithText("الجسور").performClick()
+        composeRule.onNodeWithText("حاسبة الجسور").assertIsDisplayed()
+        composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
+        val result = composeRule.onNodeWithText("الحجم الإجمالي: 1.200 م³", substring = true)
+        result.performScrollTo()
+        result.assertIsDisplayed()
+    }
+
+    @Test
+    fun masonryCalculatorOpensAndShowsNetArea() {
+        openSection("الجدران والبناء")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun slabCalculatorOpensAndShowsConcreteVolume() {
+        openSection("السقوف والبلاطات")
+        composeRule.onNodeWithText("حجم الخرسانة:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun plasterAndPaintingCalculatorOpensAndShowsNetArea() {
+        openSection("التلبيس والطلاء")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun flooringCalculatorOpensAndShowsTileEstimate() {
+        openSection("الأرضيات والتبليط")
+        composeRule.onNodeWithText("عدد البلاطات النظري:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun stairsCalculatorOpensAndShowsConcreteVolume() {
+        openSection("السلالم")
+        composeRule.onNodeWithText("حجم خرسانة السلم التقديري:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun laborCalculatorOpensAndShowsCostEstimate() {
+        openSection("اليد العاملة")
+        composeRule.onNodeWithText("التكلفة الإجمالية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun formworkCalculatorShowsEstimatedArea() {
+        openSection("القوالب")
+        composeRule.onNodeWithText("مساحة القوالب التقديرية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun steelCalculatorShowsEstimatedRebarWeight() {
+        openSection("الحديد")
+        composeRule.onNodeWithText("وزن الحديد التقريبي:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun networksCalculatorShowsTotalLength() {
+        openSection("الشبكات")
+        composeRule.onNodeWithText("الطول الإجمالي للشبكة:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun finishesCalculatorShowsNetArea() {
+        openSection("التشطيبات")
+        composeRule.onNodeWithText("المساحة الصافية:", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    private fun openSection(section: String) {
+        composeRule.onNodeWithText("ابحث عن حاسبة")
+            .performTextInput(section)
+        val sectionCard = composeRule.onNodeWithTag("work-section-$section")
+        sectionCard.assertIsDisplayed()
+        // Click the actual Card node rather than its child Text semantics node.
+        sectionCard.performClick()
+        // Wait for the calculator screen itself, not a shared results heading.
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("رجوع إلى الحاسبات").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("رجوع إلى الحاسبات").assertIsDisplayed()
+    }
+
+    @Test
+    fun projectCreationAndEmptyDevisGuardWorkInUi() {
+        composeRule.onNodeWithText("المشاريع و Devis").performClick()
+        val projectName = composeRule.onNodeWithText("اسم المشروع")
+        projectName.performTextInput("اختبار Devis UI")
+        composeRule.onNodeWithText("إنشاء مشروع").performScrollTo().performClick()
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithText("المشروع المحدد: اختبار Devis UI", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("المشروع المحدد: اختبار Devis UI", substring = true)
+            .performScrollTo().assertIsDisplayed()
+
+        val createDevis = composeRule.onNodeWithText("إنشاء Devis من التكاليف المسجلة")
+        createDevis.performScrollTo().performClick()
+        // The click launches a coroutine and reads the project costs inside a Room transaction.
+        // Wait for the asynchronous UI state update before querying the message node.
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithText("لا يمكن إنشاء Devis فارغ", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("لا يمكن إنشاء Devis فارغ", substring = true)
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("لم تُنشأ وثائق لهذا المشروع بعد.")
+            .performScrollTo().assertIsDisplayed()
     }
 
 }
