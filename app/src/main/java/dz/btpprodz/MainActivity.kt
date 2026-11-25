@@ -417,7 +417,7 @@ private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
         }
 
         CalculatedQuantityCostEntry("الخرسانة", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
-        Text(if (isArabic) "الحساب: عدد العناصر × الطول × العرض × الارتفاع أو السماكة" else "Calcul : nombre × longueur × largeur × hauteur ou épaisseur", style = MaterialTheme.typography.bodySmall)
+        CalculationExplanation(isArabic, "V = N × L × l × h", if (valid) "V = ${quantity.toInt()} × $length × $width × $height = %.3f m³".format(totalVolume) else "أدخل العدد والأبعاد الصحيحة.", "م³ / m³", "حجم هندسي فقط؛ لا يشمل الهدر أو الأشكال غير المنتظمة.")
     }
 }
 
