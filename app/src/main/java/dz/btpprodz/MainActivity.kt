@@ -305,6 +305,35 @@ private fun BtpProDzApp() {
     }
 }
 
+
+@Composable
+private fun CalculationExplanation(
+    isArabic: Boolean,
+    formula: String,
+    steps: String,
+    unit: String,
+    note: String
+) {
+    var expanded by remember(formula, steps) { mutableStateOf(true) }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isArabic) "كيف تم الحساب؟" else "Détail du calcul", fontWeight = FontWeight.Bold)
+                Text(if (expanded) if (isArabic) "إخفاء" else "Masquer" else if (isArabic) "عرض" else "Afficher",
+                    modifier = Modifier.clickable { expanded = !expanded }, color = MaterialTheme.colorScheme.primary)
+            }
+            if (expanded) {
+                Text((if (isArabic) "المعادلة: " else "Formule : ") + formula, fontWeight = FontWeight.SemiBold)
+                Text(if (isArabic) "خطوات الحساب:" else "Étapes du calcul :", fontWeight = FontWeight.Medium)
+                Text(steps)
+                Text((if (isArabic) "الوحدة: " else "Unité : ") + unit)
+                Divider()
+                Text((if (isArabic) "ملاحظة: " else "Note : ") + note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
 @Composable
 private fun ConcreteCalculator(isArabic: Boolean, projectId: Long?) {
     var quantityText by remember { mutableStateOf("") }
