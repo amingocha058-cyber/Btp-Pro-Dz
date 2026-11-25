@@ -42,6 +42,11 @@ class MainActivityUiTest {
         composeRule.onNodeWithText("حساب عدد وحجم العناصر الخرسانية").assertIsDisplayed()
         composeRule.onAllNodesWithText("اختر نوع العنصر").assertCountEquals(0)
 
+        composeRule.onNodeWithText("عدد العناصر").performScrollTo().performTextInput("1")
+        composeRule.onNodeWithText("الطول (م)").performScrollTo().performTextInput("0.3")
+        composeRule.onNodeWithText("العرض (م)").performScrollTo().performTextInput("0.3")
+        composeRule.onNodeWithText("الارتفاع / السماكة (م)").performScrollTo().performTextInput("0.3")
+
         val resultLabel = composeRule.onNodeWithText("النتيجة")
         resultLabel.performScrollTo()
         resultLabel.assertIsDisplayed()
