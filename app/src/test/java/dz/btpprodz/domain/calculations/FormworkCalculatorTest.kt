@@ -22,7 +22,8 @@ class FormworkCalculatorTest {
     }
     @Test fun footingSides() {
         val r = FormworkCalculator.footingSides(12, BigDecimal("1.5"), BigDecimal("1.5"), BigDecimal("0.45"))
-        assertEquals(0, r.totalAreaM2.compareTo(BigDecimal("16.20")))
+        assertEquals(0, r.totalAreaM2.compareTo(BigDecimal("32.40")))
+        assertEquals(0, r.areaPerElementM2.compareTo(BigDecimal("2.70")))
     }
     @Test fun rejectsInvalidDimensions() {
         assertThrows(IllegalArgumentException::class.java) {
