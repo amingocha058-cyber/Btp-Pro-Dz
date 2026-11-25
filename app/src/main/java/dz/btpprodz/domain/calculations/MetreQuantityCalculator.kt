@@ -42,7 +42,8 @@ object MetreQuantityCalculator {
         fun quantity(): BigDecimal {
             val plan = widthM?.let(lengthM::multiply) ?: lengthM
             val measured = if (type == MeasureType.VOLUME_M3) plan.multiply(requireNotNull(thicknessM)) else plan
-            return measured.multiply(BigDecimal.valueOf(count.toLong())).setScale(3, RoundingMode.HALF_UP)
+            // Keep full precision for aggregation; round only presentation/final totals.
+            return measured.multiply(BigDecimal.valueOf(count.toLong()))
         }
     }
 
