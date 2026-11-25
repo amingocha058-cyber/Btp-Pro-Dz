@@ -491,10 +491,7 @@ private fun FoundationCalculator(isArabic: Boolean, projectId: Long?, foundation
             }
         }
         CalculatedQuantityCostEntry("الأساسات", projectId, if (valid) totalVolume else 0.0, "م³", isArabic)
-        Text(
-            if (isArabic) "الحساب: العدد × الطول × العرض × الارتفاع. هذه حاسبة حجم أولية، ويجب إدخال الأبعاد حسب شكل العنصر." else "Calcul : quantité × longueur × largeur × hauteur. Calcul volumique simple, selon les dimensions de l’élément.",
-            style = MaterialTheme.typography.bodySmall
-        )
+        CalculationExplanation(isArabic, "V = N × L × l × h", if (valid) "حجم الوحدة = $length × $width × $depth = %.3f m³\\nالحجم الإجمالي = %.3f × ${quantity.toInt()} = %.3f m³".format(unitVolume, unitVolume, totalVolume) else "أدخل العدد والأبعاد الصحيحة.", "م³ / m³", "الأبعاد تؤخذ من المخططات؛ هذه كمية هندسية وليست تصميماً إنشائياً.")
     }
 }
 
