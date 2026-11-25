@@ -41,6 +41,17 @@ class MetreQuantityCalculatorTest {
             .compareTo(d("2.000")))
     }
 
+    @Test fun totalRoundsAfterSummingUnroundedRows() {
+        val first = MetreQuantityCalculator.Row("V1", d("1.2344"), d("1"), d("1"), 1,
+            MetreQuantityCalculator.MeasureType.VOLUME_M3)
+        val second = MetreQuantityCalculator.Row("V2", d("1.2344"), d("1"), d("1"), 1,
+            MetreQuantityCalculator.MeasureType.VOLUME_M3)
+        // Each displayed row would be 1.234, but the correct total is 2.469.
+        assertEquals(0, MetreQuantityCalculator.total(
+            listOf(first, second), MetreQuantityCalculator.MeasureType.VOLUME_M3
+        ).compareTo(d("2.469")))
+    }
+
     @Test fun volumeRequiresThickness() {
         assertThrows(IllegalArgumentException::class.java) {
             MetreQuantityCalculator.Row("V", d("2"), d("1"), null, 1, MetreQuantityCalculator.MeasureType.VOLUME_M3)
